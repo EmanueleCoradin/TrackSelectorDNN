@@ -1,0 +1,15 @@
+model:
+  latent_dim: 32
+  pooling_type: "softmax"
+
+  netA:
+    hidden_dim: 32
+    hidden_layers: 2
+    batchnorm: true
+    activation: "SiLU"
+
+  netB:
+    hidden_dim: 32
+    hidden_layers: 2
+    batchnorm: true
+    activation: "SiLU"
