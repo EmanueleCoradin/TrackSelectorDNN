@@ -7,8 +7,8 @@ import torch.nn as nn
 
 class NetB(nn.Module):
     def __init__(self, latent_dim, track_feat_dim,
-                 hidden_dim=64, hidden_layers=2,
-                 use_batchnorm=True, activation=nn.SiLU):
+                 hidden_dim, hidden_layers,
+                 use_batchnorm, activation):
         """
         Track-level NN.
 

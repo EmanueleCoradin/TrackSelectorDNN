@@ -6,8 +6,8 @@ import torch.nn.functional as F
 # Per-hit encoder: NetA
 # -----------------------------
 class NetA(nn.Module):
-    def __init__(self, input_dim, hidden_dim=32, latent_dim=16, hidden_layers=1,
-                 use_batchnorm=True, activation=nn.SiLU):
+    def __init__(self, input_dim, hidden_dim, latent_dim, hidden_layers,
+                 use_batchnorm, activation):
         """
         Per-hit DNN with variable number of hidden layers.
 

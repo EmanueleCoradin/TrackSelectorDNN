@@ -9,18 +9,18 @@ class TrackClassifier(nn.Module):
     def __init__(self,
                  hit_input_dim,
                  track_feat_dim,
-                 latent_dim=16,
-                 pooling_type="softmax",
+                 latent_dim,
+                 pooling_type,
                  # --- NetA parameters ---
-                 netA_hidden_dim=32,
-                 netA_hidden_layers=2,
-                 netA_batchnorm=True,
-                 netA_activation="silu",
+                 netA_hidden_dim,
+                 netA_hidden_layers,
+                 netA_batchnorm,
+                 netA_activation,
                  # --- NetB parameters ---
-                 netB_hidden_dim=64,
-                 netB_hidden_layers=2,
-                 netB_batchnorm=True,
-                 netB_activation="silu"):
+                 netB_hidden_dim,
+                 netB_hidden_layers,
+                 netB_batchnorm,
+                 netB_activation):
         """
         TrackClassifier combining NetA, pooling, and NetB.
 
