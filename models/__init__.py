@@ -1,7 +1,7 @@
 # models/__init__.py
 from .netA import NetA
 from .netB import NetB
-from .pooling import SoftmaxPooling#, SumPooling, MeanPooling
+from .pooling import SoftmaxPooling, SumPooling, MeanPooling
 from .track_classifier import TrackClassifier
 
 MODEL_REGISTRY = {

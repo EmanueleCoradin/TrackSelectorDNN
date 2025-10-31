@@ -1,5 +1,5 @@
 import torch.nn as nn
-from models.pooling import SoftmaxPooling#, SumPooling, MeanPooling
+from models.pooling import SoftmaxPooling, SumPooling, MeanPooling
 
 # ---- Activation Registry ----
 ACTIVATIONS = {
@@ -23,8 +23,8 @@ def get_activation(name: str):
 # ---- Pooling Registry ----
 POOLING_TYPES = {
     "softmax": lambda latent_dim: SoftmaxPooling(latent_dim),
-    #"sum":       lambda latent_dim: SumPooling(),
-    #"mean":      lambda latent_dim: MeanPooling(),
+    "sum":       lambda latent_dim: SumPooling(),
+    "mean":      lambda latent_dim: MeanPooling(),
 }
 
 def get_pooling(name: str, latent_dim: int):

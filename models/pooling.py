@@ -45,3 +45,48 @@ class SoftmaxPooling(nn.Module):
 
         return pooled  # (N_tracks, latent_dim)
 
+# -----------------------------
+# Sum Pooling
+# -----------------------------
+class SumPooling(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, h, batch_indices=None):
+        """
+        h: (N_hits_total, latent_dim)
+        batch_indices: (N_hits_total,) integers mapping hits to track IDs
+        """
+        if batch_indices is None:
+            return h.sum(dim=0, keepdim=True)
+
+        num_tracks = batch_indices.max().item() + 1
+        pooled = torch.zeros(num_tracks, h.size(1), device=h.device)
+        pooled.index_add_(0, batch_indices, h)
+        return pooled
+
+
+# -----------------------------
+# Mean Pooling
+# -----------------------------
+class MeanPooling(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, h, batch_indices=None):
+        """
+        h: (N_hits_total, latent_dim)
+        batch_indices: (N_hits_total,)
+        """
+        if batch_indices is None:
+            return h.mean(dim=0, keepdim=True)
+
+        num_tracks = batch_indices.max().item() + 1
+        pooled = torch.zeros(num_tracks, h.size(1), device=h.device)
+        counts = torch.zeros(num_tracks, device=h.device)
+
+        pooled.index_add_(0, batch_indices, h)
+        counts.index_add_(0, batch_indices, torch.ones_like(batch_indices, dtype=torch.float))
+        counts = counts.clamp(min=1.0).unsqueeze(-1)
+
+        return pooled / counts
