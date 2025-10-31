@@ -1,0 +1,70 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: ecoradin-ray-cluster 
+spec:
+  rayVersion: '2.50.0'
+  headGroupSpec:
+    rayStartParams:
+      num-cpus: '0'
+    template:
+      spec:
+        serviceAccountName: default-editor
+        containers:
+        - name: ray-head
+          image: registry.cern.ch/ngt/ray:2.50.0-py39 
+          lifecycle:
+            preStop:
+              exec:
+                  command: ["/bin/sh","-c","ray stop"]
+          volumeMounts:
+              - mountPath: /tmp/ray
+                name: ray-logs
+          resources:
+            limits:
+              cpu: "1"
+              memory: "2G"
+            requests:
+              cpu: "100m"
+              memory: "2G"
+        volumes:
+          - name: ray-logs
+            emptyDir: {}
+  workerGroupSpecs:
+    - replicas: 2 
+      groupName: small-group
+      rayStartParams:
+          num-cpus: '1'
+          node-manager-port: '6380'
+          object-manager-port: '6381'
+          runtime-env-agent-port: '6382'
+          dashboard-agent-grpc-port: '6383'
+          dashboard-agent-listen-port: '52365'
+          metrics-export-port: '8080'
+          max-worker-port: '10012'
+      template:
+          metadata:
+            labels:
+              mount-eos: "true"
+              mount-cvmfs: "true"
+              mount-afs: "true"
+          spec:
+            serviceAccountName: default-editor
+            nodeSelector:
+              nvidia.com/gpu.product: NVIDIA-H100-NVL 
+            containers:
+            - name: ray-worker
+              image: registry.cern.ch/ngt/ray:2.50.0-py39 
+              lifecycle:
+                preStop:
+                  exec:
+                    command: ["/bin/sh","-c","ray stop"]
+              volumeMounts:
+                - mountPath: /tmp/ray
+                  name: ray-logs
+              resources:
+                limits:
+                  nvidia.com/gpu: 1
+            volumes:
+                - name: ray-logs
+                  emptyDir: {}
