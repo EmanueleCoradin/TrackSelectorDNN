@@ -8,4 +8,8 @@ setup(
         "torch",
         "pydantic>=2.0",
     ],
+    include_package_data=True,
+    package_data={
+        "TrackSelectorDNN.configs": ["*.yaml"],
+    },
 )

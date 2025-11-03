@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field, validator
 from typing import Literal
+from importlib import resources 
 import yaml
+
 
 class Config(BaseModel):
     # --- Model architecture ---
@@ -38,8 +40,7 @@ class Config(BaseModel):
         return v
 
 
-def load_config(path: str) -> Config:
-    """Load and validate YAML config file."""
-    with open(path, "r") as f:
+def load_config(filename: str):
+    with resources.open_text("TrackSelectorDNN.configs", filename) as f:
         raw = yaml.safe_load(f)
     return Config(**raw)

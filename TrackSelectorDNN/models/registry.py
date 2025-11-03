@@ -1,5 +1,5 @@
 import torch.nn as nn
-from models.pooling import SoftmaxPooling, SumPooling, MeanPooling
+from TrackSelectorDNN.models.pooling import SoftmaxPooling, SumPooling, MeanPooling
 
 # ---- Activation Registry ----
 ACTIVATIONS = {

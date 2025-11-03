@@ -2,7 +2,7 @@ from ray import tune
 from TrackSelectorDNN.configs.schema import load_config
 from TrackSelectorDNN.tune.trainable import trainable
 
-base_cfg = load_config("configs/base.yaml").model_dump()
+base_cfg = load_config("base.yaml").model_dump()
 
 search_space = {
     **base_cfg,  # include all validated defaults

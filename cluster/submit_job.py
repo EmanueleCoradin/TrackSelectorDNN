@@ -9,7 +9,11 @@ job_id = client.submit_job(
     entrypoint="python3 -m TrackSelectorDNN.tune.tune",
     runtime_env={
         "pip": [
-            "-e /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/"  # install package in the job
+            "torch",
+            "numpy",
+            "ray[tune]",
+            "pydantic>=2.0",
+            "git+https://github.com/EmanueleCoradin/TrackSelectorDNN.git@main"
         ],
     },
 )
