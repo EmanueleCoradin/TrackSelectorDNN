@@ -1,0 +1,27 @@
+# Model architecture
+hit_input_dim: 4
+track_feat_dim: 4
+latent_dim: 16
+pooling_type: "sum"
+
+netA_hidden_dim: 32
+netA_hidden_layers: 2
+netA_batchnorm: True
+netA_activation: "silu"
+
+netB_hidden_dim: 64
+netB_hidden_layers: 2
+netB_batchnorm: True
+netB_activation: "silu"
+
+# Training setup
+lr: 0.001
+epochs: 10
+batch_size: 64
+
+# Data
+dataset_type: "dummy"          # or 'production'
+train_path: "data/processed/tracks_train.pt"  # used only if production
+n_tracks: 2000               # used only for dummy
+max_hits: 15
+val_fraction: 0.2
