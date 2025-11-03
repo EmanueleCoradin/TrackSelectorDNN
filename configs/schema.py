@@ -8,11 +8,16 @@ class Config(BaseModel):
     track_feat_dim: int
     latent_dim: int
     pooling_type: Literal["sum", "mean", "softmax"]
+    
     netA_hidden_dim: int
     netA_hidden_layers: int
+    netA_batchnorm: bool
+    netA_activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+    
     netB_hidden_dim: int
     netB_hidden_layers: int
-    activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+    netB_batchnorm: bool
+    netB_activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
 
     # --- Training setup ---
     lr: float = Field(..., gt=0)

@@ -6,9 +6,13 @@ pooling_type: "sum"
 
 netA_hidden_dim: 32
 netA_hidden_layers: 2
+netA_batchnorm: True
+netA_activation: "silu"
+
 netB_hidden_dim: 64
 netB_hidden_layers: 2
-activation: "silu"
+netB_batchnorm: True
+netB_activation: "silu"
 
 # Training setup
 lr: 0.001
