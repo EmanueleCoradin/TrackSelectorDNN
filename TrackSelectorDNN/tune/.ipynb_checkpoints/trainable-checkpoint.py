@@ -140,6 +140,7 @@ def trainable(config, checkpoint_dir=None):
             
     ### Ray Tune: report AND save checkpoint ###
     if session.get_session():
+        print("[DEBUG] Reporting checkpoint to Ray:", run_dir)
         session.report(
             best_metrics,
             checkpoint=Checkpoint.from_directory(run_dir)
