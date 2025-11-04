@@ -145,23 +145,18 @@ def trainable(config, checkpoint_dir=None):
             # Save lightweight checkpoint directory
             torch.save(model.state_dict(), os.path.join(best_ckpt_dir, "model.pt"))
 
-        # Live reporting to Ray
-        if session.get_session():
             session.report(
                 metrics,
                 checkpoint=Checkpoint.from_directory(best_ckpt_dir)
             )
 
     # Final report once training ends
-    if session.get_session():
-        print("[DEBUG] Final report to Ray:", run_dir)
-        session.report(
-            best_metrics,
-            checkpoint=Checkpoint.from_directory(best_ckpt_dir)
-        )
-    else:
-        return best_metrics
-
+    print("[DEBUG] Final report to Ray:", run_dir)
+    session.report(
+        best_metrics,
+        checkpoint=Checkpoint.from_directory(best_ckpt_dir)
+    )
+    
 
 if __name__ == "__main__":
     cfg = load_config("base.yaml")
