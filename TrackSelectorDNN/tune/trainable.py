@@ -146,17 +146,20 @@ def trainable(config, checkpoint_dir=None):
             # Save lightweight checkpoint directory
             torch.save(model.state_dict(), os.path.join(best_ckpt_dir, "model.pt"))
 
+            with open(os.path.join(run_dir, "best_metrics.json"), "w") as f:
+                json.dump(best_metrics, f)
+
             session.report(
                 metrics,
                 checkpoint=Checkpoint.from_directory(best_ckpt_dir)
             )
             
-            with open(os.path.join(run_dir, "best_metrics.json"), "w") as f:
-                json.dump(best_metrics, f)
-
 
     # Final report once training ends
     print("[DEBUG] Final report to Ray:", run_dir)
+    with open(os.path.join(run_dir, "best_metrics.json"), "w") as f:
+        json.dump(best_metrics, f)
+
     session.report(
         best_metrics,
         checkpoint=Checkpoint.from_directory(best_ckpt_dir)
