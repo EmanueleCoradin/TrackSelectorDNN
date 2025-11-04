@@ -9,6 +9,7 @@ from TrackSelectorDNN.data_manager.dataset_factory import get_dataset
 
 from ray import tune
 from ray.air import session, Checkpoint
+import json
 
 from TrackSelectorDNN.configs.schema import load_config
 from TrackSelectorDNN.tune.utils_logging import create_run_dir, save_config, save_model_summary, CSVLogger, save_checkpoint
@@ -149,6 +150,10 @@ def trainable(config, checkpoint_dir=None):
                 metrics,
                 checkpoint=Checkpoint.from_directory(best_ckpt_dir)
             )
+            
+            with open(os.path.join(run_dir, "best_metrics.json"), "w") as f:
+                json.dump(best_metrics, f)
+
 
     # Final report once training ends
     print("[DEBUG] Final report to Ray:", run_dir)
