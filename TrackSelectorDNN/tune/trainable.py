@@ -7,8 +7,7 @@ from TrackSelectorDNN.models.track_classifier import TrackClassifier
 from TrackSelectorDNN.data_manager.dataset_factory import get_dataset
 
 from ray import tune
-from ray.air import session
-from ray.train import Checkpoint
+from ray.air import session, Checkpoint
 
 from TrackSelectorDNN.configs.schema import load_config
 from TrackSelectorDNN.tune.utils_logging import create_run_dir, save_config, save_model_summary, CSVLogger, save_checkpoint
@@ -76,9 +75,7 @@ def trainable(config, checkpoint_dir=None):
             pass
             
     run_dir = create_run_dir(base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs", trial_name=trial_name)
-    best_dir = create_run_dir(base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs/best_model", trial_name=None)
-    metrics_dir = create_run_dir(base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs/best_model", trial_name=None)
-    
+
     save_config(config, run_dir)
     
     # --- Load dataset ---
