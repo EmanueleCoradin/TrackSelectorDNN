@@ -23,7 +23,7 @@ batch_size: 64
 # Data
 dataset_type: "dummy"          # or 'production'
 dummy_load_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/dummy_dataset.pt"
-#train_path: "data/processed/tracks_train.pt"  # used only if production
+train_path: "data/processed/tracks_train.pt"  # used only if production
 n_tracks: 100000               # used only for dummy
 max_hits: 15
 val_fraction: 0.2

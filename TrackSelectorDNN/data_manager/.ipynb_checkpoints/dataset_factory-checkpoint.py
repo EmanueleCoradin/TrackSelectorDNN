@@ -9,15 +9,15 @@ def get_dataset(config):
     dataset_type = config["dataset_type"]
 
     if dataset_type == "dummy":
-    dataset = DummyTrackDataset(
-        n_tracks=config["n_tracks"],
-        hit_input_dim=config["hit_input_dim"],
-        track_feat_dim=config["track_feat_dim"],
-        max_hits=config["max_hits"],
-        save_path=config.get("dummy_save_path", None),
-        load_path=config.get("dummy_load_path", None),
-    )
-    collate = dummy_collate
+        dataset = DummyTrackDataset(
+            n_tracks=config["n_tracks"],
+            hit_input_dim=config["hit_input_dim"],
+            track_feat_dim=config["track_feat_dim"],
+            max_hits=config["max_hits"],
+            save_path=config.get("dummy_save_path", None),
+            load_path=config.get("dummy_load_path", None),
+        )
+        collate = dummy_collate
     
     elif dataset_type == "production":
         dataset = TrackDatasetFromFile(config["train_path"])

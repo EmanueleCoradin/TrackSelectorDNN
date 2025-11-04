@@ -8,7 +8,8 @@ from TrackSelectorDNN.models.track_classifier import TrackClassifier
 from TrackSelectorDNN.data_manager.dataset_factory import get_dataset
 
 from ray import tune
-from ray.air import session, Checkpoint
+from ray.air import session
+from ray.train import Checkpoint
 import json
 
 from TrackSelectorDNN.configs.schema import load_config
