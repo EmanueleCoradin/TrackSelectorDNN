@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,7 +14,7 @@ from TrackSelectorDNN.configs.schema import load_config
 from TrackSelectorDNN.tune.utils_logging import create_run_dir, save_config, save_model_summary, CSVLogger, save_checkpoint
 
 # ---------------------------
-# Utility: simple train/val loop
+# Utility functions
 # ---------------------------
 def train_one_epoch(model, loader, criterion, optimizer, device):
     model.train()
@@ -57,16 +58,13 @@ def validate(model, loader, criterion, device):
 
 
 # ---------------------------
-# Main trainable (Ray-compatible)
+# Ray Tune Trainable
 # ---------------------------
 def trainable(config, checkpoint_dir=None):
-    """
-    Trainable function compatible with Ray Tune.
-    If run standalone, behaves like a normal training script.
-    """
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # --- Setup logs ---
+    # Trial directory for this run
     trial_name = None
     if session.get_session():
         try:
@@ -74,13 +72,15 @@ def trainable(config, checkpoint_dir=None):
         except Exception:
             pass
             
-    run_dir = create_run_dir(base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs", trial_name=trial_name)
-
+    run_dir = create_run_dir(
+        base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs",
+        trial_name=trial_name
+    )
     save_config(config, run_dir)
-    
-    # --- Load dataset ---
+
+    # Dataset
     dataset, collate_fn = get_dataset(config)
-    val_fraction = config['val_fraction']
+    val_fraction = config["val_fraction"]
     val_len   = int(len(dataset) * val_fraction)
     train_len = len(dataset) - val_len
     train_ds, val_ds = random_split(dataset, [train_len, val_len])
@@ -89,7 +89,7 @@ def trainable(config, checkpoint_dir=None):
                               shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_ds, batch_size=config["batch_size"], collate_fn=collate_fn)
 
-    # --- Build model ---
+    # Model
     model = TrackClassifier(
         hit_input_dim=config["hit_input_dim"],
         track_feat_dim=config["track_feat_dim"],
@@ -109,15 +109,19 @@ def trainable(config, checkpoint_dir=None):
 
     save_model_summary(model, run_dir)
 
-    # --- Optimizer / Loss ---
     optimizer = optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
     criterion = nn.BCELoss()
 
-    # --- Training loop ---
     logger = CSVLogger(run_dir)
-    best_val_loss = float("inf")
-    best_path = None
     n_epochs = config["epochs"]
+
+    # Initialize best metrics safely
+    best_val_loss = float("inf")
+    best_metrics = {"val_loss": float("inf"), "val_acc": 0.0, "epoch": 0}
+    best_ckpt_dir = os.path.join(run_dir, "best_checkpoint")
+    os.makedirs(best_ckpt_dir, exist_ok=True)
+
+    # Training loop
     for epoch in range(n_epochs):
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = validate(model, val_loader, criterion, device)
@@ -128,32 +132,38 @@ def trainable(config, checkpoint_dir=None):
             "val_loss": val_loss,
             "val_acc": val_acc,
         }
+
         print(f"[Epoch {epoch+1}/{n_epochs}] "
               f"train_loss={train_loss:.4f}, val_loss={val_loss:.4f}, val_acc={val_acc:.4f}")
         logger.log(metrics)
 
-        # Save Best Model
+        # Save best checkpoint only
         if val_loss < best_val_loss:
-            best_metrics  = metrics
             best_val_loss = val_loss
-            best_path = save_checkpoint(model, run_dir, filename="best_model.pt")
-            
-    ### Ray Tune: report AND save checkpoint ###
+            best_metrics = metrics
+
+            # Save lightweight checkpoint directory
+            torch.save(model.state_dict(), os.path.join(best_ckpt_dir, "model.pt"))
+
+        # Live reporting to Ray
+        if session.get_session():
+            session.report(
+                metrics,
+                checkpoint=Checkpoint.from_directory(best_ckpt_dir)
+            )
+
+    # Final report once training ends
     if session.get_session():
-        print("[DEBUG] Reporting checkpoint to Ray:", run_dir)
+        print("[DEBUG] Final report to Ray:", run_dir)
         session.report(
             best_metrics,
-            checkpoint=Checkpoint.from_directory(run_dir)
+            checkpoint=Checkpoint.from_directory(best_ckpt_dir)
         )
     else:
         return best_metrics
 
-    
-if __name__ == "__main__":
-    # Load and validate the configuration
-    cfg = load_config("base.yaml")
-    print(cfg)  # validated dataclass-like object
 
-    # Convert to dict for trainable
+if __name__ == "__main__":
+    cfg = load_config("base.yaml")
+    print(cfg)
     trainable(cfg.dict())
-    
