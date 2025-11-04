@@ -8,6 +8,7 @@ from TrackSelectorDNN.data_manager.dataset_factory import get_dataset
 
 from ray import tune
 from ray.air import session
+from ray.train import Checkpoint
 
 from TrackSelectorDNN.configs.schema import load_config
 from TrackSelectorDNN.tune.utils_logging import create_run_dir, save_config, save_model_summary, CSVLogger, save_checkpoint
@@ -70,11 +71,14 @@ def trainable(config, checkpoint_dir=None):
     trial_name = None
     if session.get_session():
         try:
-            trial_name = tune.get_tiral_name()
+            trial_name = tune.get_trial_name()
         except Exception:
             pass
             
     run_dir = create_run_dir(base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs", trial_name=trial_name)
+    best_dir = create_run_dir(base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs/best_model", trial_name=None)
+    metrics_dir = create_run_dir(base_dir="/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs/best_model", trial_name=None)
+    
     save_config(config, run_dir)
     
     # --- Load dataset ---
@@ -109,7 +113,7 @@ def trainable(config, checkpoint_dir=None):
     save_model_summary(model, run_dir)
 
     # --- Optimizer / Loss ---
-    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
     criterion = nn.BCELoss()
 
     # --- Training loop ---
@@ -133,22 +137,23 @@ def trainable(config, checkpoint_dir=None):
 
         # Save Best Model
         if val_loss < best_val_loss:
+            best_metrics  = metrics
             best_val_loss = val_loss
             best_path = save_checkpoint(model, run_dir, filename="best_model.pt")
             
-        # Ray Tune reporting
-        if "tune" in globals() and session.get_session():
-            tune.report(metrics)
+    ### Ray Tune: report AND save checkpoint ###
+    if session.get_session():
+        session.report(
+            best_metrics,
+            checkpoint=Checkpoint.from_directory(run_dir)
+        )
+    else:
+        return best_metrics
 
-    # --- Save final checkpoint ---
-    save_checkpoint(model, run_dir, filename="final_model.pt")
-    logger.close()
-
-    return {"val_loss": val_loss}
     
 if __name__ == "__main__":
     # Load and validate the configuration
-    cfg = load_config("configs/base.yaml")
+    cfg = load_config("base.yaml")
     print(cfg)  # validated dataclass-like object
 
     # Convert to dict for trainable

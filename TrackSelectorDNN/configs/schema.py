@@ -28,6 +28,7 @@ class Config(BaseModel):
 
     # --- Data ---
     dataset_type: Literal["dummy", "production"]
+    dummy_load_path: str
     train_path: str
     n_tracks: int               # used only for dummy
     max_hits: int

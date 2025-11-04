@@ -63,3 +63,15 @@ def save_checkpoint(model, run_dir, filename="checkpoint.pt"):
     path = os.path.join(run_dir, filename)
     torch.save(model.state_dict(), path)
     return path
+
+def append_global_trial_summary(summary: dict, base_dir):
+    os.makedirs(base_dir, exist_ok=True)
+    path = os.path.join(base_dir, "grid_summary.csv")
+
+    file_exists = os.path.isfile(path)
+
+    with open(path, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=summary.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(summary)
