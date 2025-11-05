@@ -120,8 +120,6 @@ def trainable(config, checkpoint_dir=None):
     # Initialize best metrics safely
     best_val_loss = float("inf")
     best_metrics = {"val_loss": float("inf"), "val_acc": 0.0, "epoch": 0}
-    best_ckpt_dir = os.path.join(run_dir, "best_checkpoint")
-    os.makedirs(best_ckpt_dir, exist_ok=True)
 
     # Training loop
     for epoch in range(n_epochs):
@@ -145,14 +143,14 @@ def trainable(config, checkpoint_dir=None):
             best_metrics = metrics
 
             # Save lightweight checkpoint directory
-            torch.save(model.state_dict(), os.path.join(best_ckpt_dir, "model.pt"))
+            torch.save(model.state_dict(), os.path.join(run_dir, "best_model.pt"))
 
             with open(os.path.join(run_dir, "best_metrics.json"), "w") as f:
                 json.dump(best_metrics, f)
 
             session.report(
                 metrics,
-                checkpoint=Checkpoint.from_directory(best_ckpt_dir)
+                checkpoint=Checkpoint.from_directory(run_dir)
             )
             
 
@@ -163,7 +161,7 @@ def trainable(config, checkpoint_dir=None):
 
     session.report(
         best_metrics,
-        checkpoint=Checkpoint.from_directory(best_ckpt_dir)
+        checkpoint=Checkpoint.from_directory(run_dir)
     )
     
 
