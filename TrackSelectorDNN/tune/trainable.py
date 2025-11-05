@@ -70,7 +70,7 @@ def trainable(config, checkpoint_dir=None):
     trial_name = None
     if session.get_session():
         try:
-            trial_name = tune.get_trial_name()
+            trial_name = session.get_trial_id()
         except Exception:
             pass
             

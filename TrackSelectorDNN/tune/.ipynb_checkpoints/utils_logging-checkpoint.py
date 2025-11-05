@@ -15,9 +15,8 @@ def create_run_dir(base_dir="./runs", trial_name=None):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     if trial_name:
-        trial_dir = os.path.join(base_dir, trial_name)
-        os.makedirs(trial_dir, exist_ok=True)
-        run_dir = os.path.join(trial_dir, timestamp)
+        run_dir = os.path.join(base_dir, trial_name)
+        os.makedirs(run_dir, exist_ok=True)
     else:
         run_dir = os.path.join(base_dir, timestamp)
 
