@@ -62,7 +62,7 @@ def validate(model, loader, criterion, device):
 # ---------------------------
 # Ray Tune Trainable
 # ---------------------------
-def trainable(config, checkpoint_dir=None):
+def trainable(config, checkpoint_dir=None, patience = 5, delta = 0):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -120,9 +120,11 @@ def trainable(config, checkpoint_dir=None):
     # Initialize best metrics safely
     best_val_loss = float("inf")
     best_metrics = {"val_loss": float("inf"), "val_acc": 0.0, "epoch": 0}
-
+    count_stopping = 0
     # Training loop
     for epoch in range(n_epochs):
+        if(count_stopping==patience):
+            break
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = validate(model, val_loader, criterion, device)
 
@@ -152,7 +154,9 @@ def trainable(config, checkpoint_dir=None):
                 metrics,
                 checkpoint=Checkpoint.from_directory(run_dir)
             )
-            
+            count_stopping = 0
+        if val_loss + delta > best_val_loss :
+            count_stopping+=1
 
     # Final report once training ends
     print("[DEBUG] Final report to Ray:", run_dir)
