@@ -24,11 +24,11 @@ def train_one_epoch(model, loader, criterion, optimizer, device):
     for batch in loader:
         hit_features = batch["hit_features"].to(device)
         track_features = batch["track_features"].to(device)
-        batch_indices = batch["batch_indices"].to(device)
+        mask = batch["mask"].to(device)
         labels = batch["labels"].to(device)
 
         optimizer.zero_grad()
-        preds = model(hit_features, track_features, batch_indices)
+        preds = model(hit_features, track_features, mask)
         loss = criterion(preds, labels)
         loss.backward()
         optimizer.step()
@@ -46,10 +46,10 @@ def validate(model, loader, criterion, device):
         for batch in loader:
             hit_features = batch["hit_features"].to(device)
             track_features = batch["track_features"].to(device)
-            batch_indices = batch["batch_indices"].to(device)
+            mask = batch["mask"].to(device)
             labels = batch["labels"].to(device)
 
-            preds = model(hit_features, track_features, batch_indices)
+            preds = model(hit_features, track_features, mask)
             loss = criterion(preds, labels)
             total_loss += loss.item() * len(labels)
 

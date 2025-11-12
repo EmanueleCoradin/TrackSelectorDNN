@@ -1,6 +1,6 @@
 # Model architecture
-hit_input_dim: 10
-track_feat_dim: 16
+hit_input_dim: 9
+track_feat_dim: 23
 latent_dim: 16
 pooling_type: "sum"
 
@@ -17,13 +17,14 @@ netB_activation: "silu"
 # Training setup
 lr: 1.e-3
 weight_decay: 0
-epochs: 10
-batch_size: 64
+epochs: 100
+batch_size: 128
 
 # Data
-dataset_type: "dummy"          # or 'production'
+dataset_type: "production"          # or 'production'
 dummy_load_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/dummy_dataset.pt"
-train_path: "data/processed/tracks_train.pt"  # used only if production
+train_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_train_dataset.pt"  # used only if production
+test_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_test_dataset.pt"
 n_tracks: 100000               # used only for dummy
-max_hits: 15
+max_hits: 16
 val_fraction: 0.2

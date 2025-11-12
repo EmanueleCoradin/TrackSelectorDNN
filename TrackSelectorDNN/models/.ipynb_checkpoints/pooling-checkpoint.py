@@ -14,36 +14,22 @@ class SoftmaxPooling(nn.Module):
             nn.Linear(latent_dim, 1)
         )
 
-    def forward(self, h, mask=None, batch_indices=None):
+    def forward(self, h, mask=None):
         """
-        h: (N_hits_total, latent_dim)
-        batch_indices: (N_hits_total,) tensor of integers labeling track membership
-        mask: optional boolean mask for padded hits
+        h: (N_tracks, N_hits, latent_dim)
+        mask: (N_tracks, N_hits) boolean, True for real hits, False for padding
 
         returns: (N_tracks, latent_dim)
         """
-        scores = self.score_net(h)  # (N_hits_total, 1)
-        scores = scores.squeeze(-1)
+        scores = self.score_net(h).squeeze(-1)  # (N_tracks, N_hits)
 
-        # softmax within each track
-        if batch_indices is None:
-            # assume one track
-            weights = F.softmax(scores, dim=0)
-            pooled = torch.sum(weights.unsqueeze(-1) * h, dim=0, keepdim=True)
-        else:
-            # batch-wise pooling
-            num_tracks = batch_indices.max().item() + 1
-            pooled = []
-            for i in range(num_tracks):
-                mask_i = batch_indices == i
-                s_i = scores[mask_i]
-                h_i = h[mask_i]
-                w_i = F.softmax(s_i, dim=0).unsqueeze(-1)
-                pooled_i = torch.sum(w_i * h_i, dim=0, keepdim=True)
-                pooled.append(pooled_i)
-            pooled = torch.cat(pooled, dim=0)
+        if mask is not None:
+            # Mask padded hits by large negative value to zero out in softmax
+            scores = scores.masked_fill(~mask, float('-inf'))
 
-        return pooled  # (N_tracks, latent_dim)
+        weights = F.softmax(scores, dim=1).unsqueeze(-1)  # (N_tracks, N_hits, 1)
+        pooled = (weights * h).sum(dim=1)                # (N_tracks, latent_dim)
+        return pooled
 
 # -----------------------------
 # Sum Pooling
@@ -52,17 +38,14 @@ class SumPooling(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, h, batch_indices=None):
+    def forward(self, h, mask=None):
         """
-        h: (N_hits_total, latent_dim)
-        batch_indices: (N_hits_total,) integers mapping hits to track IDs
+        h: (N_tracks, max_hits, latent_dim)
+        mask: (N_tracks, max_hits) boolean, True for real hits, False for padding
         """
-        if batch_indices is None:
-            return h.sum(dim=0, keepdim=True)
-
-        num_tracks = batch_indices.max().item() + 1
-        pooled = torch.zeros(num_tracks, h.size(1), device=h.device)
-        pooled.index_add_(0, batch_indices, h)
+        if mask is not None:
+            h = torch.where(mask.unsqueeze(-1), h, torch.zeros_like(h)) 
+        pooled = h.sum(dim=1)
         return pooled
 
 
@@ -73,20 +56,19 @@ class MeanPooling(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, h, batch_indices=None):
+    def forward(self, h, mask=None):
         """
-        h: (N_hits_total, latent_dim)
-        batch_indices: (N_hits_total,)
+        h: (N_tracks, N_hits, latent_dim)
+        mask: (N_tracks, N_hits) boolean, True for real hits, False for padding
+
+        returns: (N_tracks, latent_dim)
         """
-        if batch_indices is None:
-            return h.mean(dim=0, keepdim=True)
+        if mask is not None:
+            mask = mask.unsqueeze(-1)
+            h = torch.where(mask, h, torch.zeros_like(h)) 
+            counts = mask.float().sum(dim=1).clamp(min=1e-6)  # avoid division by zero
+        else:
+            counts = h.size(1)
 
-        num_tracks = batch_indices.max().item() + 1
-        pooled = torch.zeros(num_tracks, h.size(1), device=h.device)
-        counts = torch.zeros(num_tracks, device=h.device)
-
-        pooled.index_add_(0, batch_indices, h)
-        counts.index_add_(0, batch_indices, torch.ones_like(batch_indices, dtype=torch.float))
-        counts = counts.clamp(min=1.0).unsqueeze(-1)
-
-        return pooled / counts
+        pooled = h.sum(dim=1) / counts
+        return pooled

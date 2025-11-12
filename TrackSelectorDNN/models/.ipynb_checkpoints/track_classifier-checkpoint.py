@@ -59,14 +59,22 @@ class TrackClassifier(nn.Module):
             activation=actB
         )
 
-    def forward(self, hit_features, track_features, batch_indices):
+    def forward(self, hit_features, track_features, mask=None):
         """
         Args:
-            hit_features:   (N_hits_total, hit_input_dim)
+            hit_features:   (N_tracks, N_hits_total, hit_input_dim)
             track_features: (N_tracks, track_feat_dim)
-            batch_indices:  (N_hits_total,) integers mapping each hit to its track
+            mask:  (N_tracks, N_hits_total) boolean to drop padding hits
         """
-        h = self.netA(hit_features)                 # (N_hits_total, latent_dim)
-        pooled = self.pool(h, batch_indices=batch_indices)  # (N_tracks, latent_dim)
-        out = self.netB(pooled, track_features)     # (N_tracks,)
+        N_tracks, N_hits, _ = hit_features.shape
+    
+        # Pass hits through NetA
+        h = self.netA(hit_features.view(-1, hit_features.size(-1)))  # flatten hits
+        h = h.view(N_tracks, N_hits, -1)                             # restore track dim
+    
+        # Pooling
+        pooled = self.pool(h, mask)  # (N_tracks, latent_dim)
+    
+        # NetB
+        out = self.netB(pooled, track_features)  # (N_tracks,)
         return out

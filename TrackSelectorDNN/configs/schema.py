@@ -30,6 +30,7 @@ class Config(BaseModel):
     dataset_type: Literal["dummy", "production"]
     dummy_load_path: str
     train_path: str
+    test_path: str
     n_tracks: int               # used only for dummy
     max_hits: int
     val_fraction: float = Field(..., ge=0.0, le=1.0)

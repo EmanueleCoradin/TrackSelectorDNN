@@ -1,7 +1,7 @@
 from TrackSelectorDNN.data_manager.dataset import TrackDatasetFromFile, collate_fn as prod_collate
 from TrackSelectorDNN.data_manager.dummy_dataset import DummyTrackDataset, collate_fn as dummy_collate
 
-def get_dataset(config):
+def get_dataset(config, dataset_role="train_path"):
     """
     Returns a Dataset instance and corresponding collate_fn.
     Selection depends on config["dataset_type"].
@@ -20,7 +20,7 @@ def get_dataset(config):
         collate = dummy_collate
     
     elif dataset_type == "production":
-        dataset = TrackDatasetFromFile(config["train_path"])
+        dataset = TrackDatasetFromFile(config[dataset_role])
         collate = prod_collate
 
     else:

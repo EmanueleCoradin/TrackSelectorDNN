@@ -2,34 +2,76 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 
 class TrackDatasetFromFile(Dataset):
-    """Loads pre-saved hits and track features from a .pt file"""
     def __init__(self, path):
         data = torch.load(path)
-        self.all_hits = data["all_hits"]
-        self.all_batch_idx = data["all_batch_idx"]
-        self.all_tracks = data["all_tracks"]
-        self.all_labels = data["all_labels"]
-        self.n_tracks = self.all_tracks.shape[0]
+        self.recHitFeatures = data["recHitFeatures"]           # (N_tracks, max_hits, hit_input_dim)
+        self.recoPixelTrackFeatures = data["recoPixelTrackFeatures"]  # (N_tracks, track_feat_dim)
+        self.mask = data["isRecHit"]                           # (N_tracks, max_hits) boolean
+        self.labels = data["labels"] if "labels" in data else None # (N_tracks,)
 
+        # --- Metadata ---
+        self.recHitBranches = data.get("recHitBranches", None)
+        self.recoPixelTrackBranches = data.get("recoPixelTrackBranches", None)
+        self.MAX_HITS = data.get("MAX_HITS", None)
+
+        # --- Normalization statistics (optional) ---
+        self.recHit_mean = data.get("recHit_mean", None)
+        self.recHit_std = data.get("recHit_std", None)
+        self.recoPixelTrack_mean = data.get("recoPixelTrack_mean", None)
+        self.recoPixelTrack_std = data.get("recoPixelTrack_std", None)
+
+        # --- Preprocessing parameters (optional) ---
+        self.log_vars = data.get("log_vars", [])
+        self.clip_vars = data.get("clip_vars", [])
+        self.clip_recHit_vars = data.get("clip_recHit_vars", [])
+        self.EPSILON = data.get("EPSILON", 1e-8)
+        self.LOW_PERCENTILE = data.get("LOW_PERCENTILE", 0.001)
+        self.HIGH_PERCENTILE = data.get("HIGH_PERCENTILE", 0.999)
+        
     def __len__(self):
-        return self.n_tracks
+        return len(self.labels)
 
     def __getitem__(self, idx):
-        mask = self.all_batch_idx == idx
-        return (
-            self.all_hits[mask],
-            self.all_tracks[idx],
-            torch.tensor(idx),
-            self.all_labels[idx]
-        )
-        
+        # Return in order: hit_features, track_features, mask, label
+        item = {
+            "hit_features": self.recHitFeatures[idx],
+            "track_features": self.recoPixelTrackFeatures[idx],
+            "mask": self.mask[idx]
+        }
+        if self.labels is not None:
+            item["labels"] = self.labels[idx]
+        return item
+    
+    def get_feature_names(self):
+        return {
+            "recHit": self.recHitBranches,
+            "recoTrack": self.recoPixelTrackBranches
+        }
+
+    def get_normalization_stats(self):
+        return {
+            "recHit_mean": self.recHit_mean,
+            "recHit_std": self.recHit_std,
+            "reco_mean": self.recoPixelTrack_mean,
+            "reco_std": self.recoPixelTrack_std
+        }
+
 def collate_fn(batch):
-    hits, tracks, batch_ids, labels = zip(*batch)
-    hit_features = torch.cat(hits, dim=0)
-    track_features = torch.stack(tracks, dim=0)
-    batch_indices = torch.cat([
-        torch.full((len(h),), i, dtype=torch.long)
-        for i, h in enumerate(hits)
-    ])
-    labels = torch.stack(labels).float()
-    return hit_features, track_features, batch_indices, labels
+    """
+    Collate function for fixed-length tracks.
+    Each element of batch: (hit_features, track_features, mask, label)
+    """
+    hit_features, track_features, mask, labels = [], [], [], []
+
+    for item in batch:
+        hit_features.append(item["hit_features"])# (B, max_hits, hit_input_dim)
+        track_features.append(item["track_features"])# (B, track_feat_dim)
+        mask.append(item["mask"])# (B, max_hits)
+        labels.append(item.get("labels", torch.tensor(0.0)))  # dummy if missing; (B,)
+
+    return {
+        "hit_features": torch.stack(hit_features),
+        "track_features": torch.stack(track_features),
+        "mask": torch.stack(mask),
+        "labels": torch.stack(labels).float()
+    }
