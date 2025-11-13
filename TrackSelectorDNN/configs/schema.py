@@ -25,13 +25,15 @@ class Config(BaseModel):
     lr: float = Field(..., gt=0)
     epochs: int = Field(..., gt=0)
     batch_size: int = Field(..., gt=0)
-
+    patience: int
+    delta: float
+    
     # --- Data ---
     dataset_type: Literal["dummy", "production"]
     dummy_load_path: str
     train_path: str
+    val_path: str
     test_path: str
-    n_tracks: int               # used only for dummy
     max_hits: int
     val_fraction: float = Field(..., ge=0.0, le=1.0)
 

@@ -8,7 +8,7 @@ class TrackDatasetFromFile(Dataset):
         self.recoPixelTrackFeatures = data["recoPixelTrackFeatures"]  # (N_tracks, track_feat_dim)
         self.mask = data["isRecHit"]                           # (N_tracks, max_hits) boolean
         self.labels = data["labels"] if "labels" in data else None # (N_tracks,)
-
+        self.isHighPurity = data["isHighPurity"] if "isHighPurity" in data else None # (N_tracks,)
         # --- Metadata ---
         self.recHitBranches = data.get("recHitBranches", None)
         self.recoPixelTrackBranches = data.get("recoPixelTrackBranches", None)

@@ -62,8 +62,10 @@ def validate(model, loader, criterion, device):
 # ---------------------------
 # Ray Tune Trainable
 # ---------------------------
-def trainable(config, checkpoint_dir=None, patience = 5, delta = 0):
-
+def trainable(config, checkpoint_dir=None):
+    patience = config["patience"]
+    delta = config["delta"]
+    
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Trial directory for this run
@@ -81,12 +83,9 @@ def trainable(config, checkpoint_dir=None, patience = 5, delta = 0):
     save_config(config, run_dir)
 
     # Dataset
-    dataset, collate_fn = get_dataset(config)
-    val_fraction = config["val_fraction"]
-    val_len   = int(len(dataset) * val_fraction)
-    train_len = len(dataset) - val_len
-    train_ds, val_ds = random_split(dataset, [train_len, val_len])
-
+    train_ds, collate_fn = get_dataset(config, dataset_role="train_path")
+    val_ds, _ = get_dataset(config, dataset_role="val_path")
+    
     train_loader = DataLoader(train_ds, batch_size=config["batch_size"],
                               shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_ds, batch_size=config["batch_size"], collate_fn=collate_fn)
