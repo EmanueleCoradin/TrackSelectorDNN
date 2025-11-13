@@ -22,7 +22,7 @@ def get_activation(name: str):
 
 # ---- Pooling Registry ----
 POOLING_TYPES = {
-    "softmax": lambda latent_dim: SoftmaxPooling(latent_dim),
+    "softmax":   lambda latent_dim: SoftmaxPooling(latent_dim),
     "sum":       lambda latent_dim: SumPooling(),
     "mean":      lambda latent_dim: MeanPooling(),
 }

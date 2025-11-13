@@ -1,8 +1,7 @@
 import os
-import yaml
 import csv
-import json
 import datetime
+import yaml
 import torch
 
 def create_run_dir(base_dir="./runs", trial_name=None):

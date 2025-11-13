@@ -1,5 +1,5 @@
-from torch.utils.data import Dataset, DataLoader
 import torch
+from torch.utils.data import Dataset
 
 class TrackDatasetFromFile(Dataset):
     def __init__(self, path):
@@ -9,6 +9,7 @@ class TrackDatasetFromFile(Dataset):
         self.mask = data["isRecHit"]                           # (N_tracks, max_hits) boolean
         self.labels = data["labels"] if "labels" in data else None # (N_tracks,)
         self.isHighPurity = data["isHighPurity"] if "isHighPurity" in data else None # (N_tracks,)
+        
         # --- Metadata ---
         self.recHitBranches = data.get("recHitBranches", None)
         self.recoPixelTrackBranches = data.get("recoPixelTrackBranches", None)
@@ -23,7 +24,7 @@ class TrackDatasetFromFile(Dataset):
         # --- Preprocessing parameters (optional) ---
         self.log_vars = data.get("log_vars", [])
         self.clip_vars = data.get("clip_vars", [])
-        self.clip_recHit_vars = data.get("clip_recHit_vars", [])
+        self.log_recHit_vars = data.get("log_recHit_vars", [])
         self.EPSILON = data.get("EPSILON", 1e-8)
         self.LOW_PERCENTILE = data.get("LOW_PERCENTILE", 0.001)
         self.HIGH_PERCENTILE = data.get("HIGH_PERCENTILE", 0.999)

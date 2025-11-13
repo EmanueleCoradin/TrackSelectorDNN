@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from TrackSelectorDNN.models.netA    import NetA 
+from TrackSelectorDNN.models.netA    import NetA
 from TrackSelectorDNN.models.netB    import NetB
 from TrackSelectorDNN.models.registry import get_activation, get_pooling
 
