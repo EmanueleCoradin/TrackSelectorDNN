@@ -1,6 +1,6 @@
 # Model architecture
 hit_input_dim: 9
-track_feat_dim: 23
+track_feat_dim: 25
 latent_dim: 16
 pooling_type: "sum"
 
@@ -21,12 +21,11 @@ epochs: 5
 batch_size: 128
 patience: 15
 delta: 0
+base_checkpoint_directory: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs"
 
 # Data
 dataset_type: "production"          # or 'production'
-dummy_load_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/dummy_dataset.pt"
 train_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_train_dataset.pt"  # used only if production
 val_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_val_dataset.pt"
 test_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_test_dataset.pt"
 max_hits: 16
-val_fraction: 0.2

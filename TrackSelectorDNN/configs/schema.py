@@ -1,6 +1,6 @@
 from importlib import resources
 from typing import Literal, Optional
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 import yaml
 
 
@@ -88,29 +88,30 @@ class Config(BaseModel):
     test_path: Optional[str] = None
     max_hits: int
 
-    @validator("latent_dim")
+    @field_validator("latent_dim")
     def latent_positive(cls, v):
         if v <= 0:
             raise ValueError("latent_dim must be > 0")
         return v
 
-    @root_validator
-    def check_paths(cls, values):
-        dataset_type = values.get("dataset_type")
-        dummy_load_path = values.get("dummy_load_path")
-        train_path = values.get("train_path")
-        val_path = values.get("val_path")
-        test_path = values.get("test_path")
-        if dataset_type == "dummy" and not dummy_load_path:
-            raise ValueError("dummy_load_path is required when dataset_type is 'dummy'")
-        if dataset_type == "production" and not train_path:
-            raise ValueError("train_path is required when dataset_type is 'production'")
-        if dataset_type == "production" and not val_path:
-            raise ValueError("val_path is required when dataset_type is 'production'")
-        if dataset_type == "production" and not test_path:
-            raise ValueError("test_path is required when dataset_type is 'production'")
-        return values
+    @model_validator(mode="after")
+    def check_paths(self):
+        if self.dataset_type == "dummy":
+            if not self.dummy_load_path:
+                raise ValueError("dummy_load_path is required when dataset_type='dummy'")
 
+        if self.dataset_type == "production":
+            missing = [
+                name for name in ("train_path", "val_path", "test_path")
+                if getattr(self, name) is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"Missing required fields for production dataset: {', '.join(missing)}"
+                )
+
+        return self
+        
 def load_config(filename: str):
     with resources.open_text("TrackSelectorDNN.configs", filename) as f:
         raw = yaml.safe_load(f)
