@@ -22,6 +22,11 @@ batch_size: 128
 patience: 15
 delta: 0
 base_checkpoint_directory: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs"
+idxSymRecHitFeatures: [2, 7]
+idxSymRecoPixelTrackFeatures: [5, 7, 10, 22, 23]
+w_true: 0.60 
+w_fake: 2.91
+lambda_sym: 0.1
 
 # Data
 dataset_type: "production"          # or 'production'

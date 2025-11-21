@@ -1,9 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-import torch
-import torch.nn as nn
 
 class NetB(nn.Module):
     def __init__(self, latent_dim, track_feat_dim,
@@ -52,4 +48,4 @@ class NetB(nn.Module):
         """
         x = torch.cat([pooled_hit, track_features], dim=-1)
         logits = self.mlp(x)
-        return torch.sigmoid(logits).squeeze(-1)
+        return logits.squeeze(-1)

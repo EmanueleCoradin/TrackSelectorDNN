@@ -48,4 +48,4 @@ class NetB(nn.Module):
         """
         x = torch.cat([pooled_hit, track_features], dim=-1)
         logits = self.mlp(x)
-        return torch.sigmoid(logits).squeeze(-1)
+        return logits.squeeze(-1)

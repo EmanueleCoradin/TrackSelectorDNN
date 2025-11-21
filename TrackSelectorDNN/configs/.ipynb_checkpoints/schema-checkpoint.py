@@ -1,5 +1,5 @@
 from importlib import resources
-from typing import Literal, Optional
+from typing import Literal, Optional, List
 from pydantic import BaseModel, Field, field_validator, model_validator
 import yaml
 
@@ -45,6 +45,11 @@ class Config(BaseModel):
         val_path (Optional[str]): Path to validation dataset (required if dataset_type is "production").
         test_path (Optional[str]): Path to test dataset (required if dataset_type is "production").
         max_hits (int): Maximum number of hits per track.
+        idxSymRecHitFeatures (Optional[List[int]]): Indices of hit features to symmetrize.
+        idxSymRecoPixelTrackFeatures (Optional[List[int]]): Indices of pixel track features  to symmetrize.
+        lambda_sym (Optional[float]): Weight for symmetric regularization term.
+        w_true (Optional[float]): Weight for true tracks.
+        w_fake (Optional[float]): Weight for fake tracks.
 
     Validation:
         - `latent_dim` must be positive.
@@ -87,7 +92,12 @@ class Config(BaseModel):
     val_path: Optional[str] = None
     test_path: Optional[str] = None
     max_hits: int
-
+    idxSymRecHitFeatures: Optional[List[int]] = None
+    idxSymRecoPixelTrackFeatures: Optional[List[int]] = None
+    lambda_sym: Optional[float] = None
+    w_true: Optional[float] = None
+    w_fake: Optional[float] = None
+    
     @field_validator("latent_dim")
     def latent_positive(cls, v):
         if v <= 0:

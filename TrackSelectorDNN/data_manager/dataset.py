@@ -2,6 +2,45 @@ import torch
 from torch.utils.data import Dataset
 
 class TrackDatasetFromFile(Dataset):
+    """
+    PyTorch Dataset for loading track data from a pt file.
+    It loads preprocessed features for 
+    reconstructed hits and pixel tracks, along with optional metadata, labels, 
+    and normalization statistics.
+
+    Attributes:
+        recHitFeatures (torch.Tensor): Tensor of shape (N_tracks, max_hits, hit_input_dim)
+            containing features for each reconstructed hit in the tracks.
+        recoPixelTrackFeatures (torch.Tensor): Tensor of shape (N_tracks, track_feat_dim)
+            containing features for each reconstructed pixel track.
+        mask (torch.Tensor): Boolean tensor of shape (N_tracks, max_hits) indicating valid hits.
+        labels (torch.Tensor or None): Optional tensor of shape (N_tracks,) with track labels.
+        isHighPurity (torch.Tensor or None): Optional tensor of shape (N_tracks,)
+            indicating if tracks are high-purity.
+        
+        recHitBranches (list or None): Optional list of feature names for recHitFeatures.
+        recoPixelTrackBranches (list or None): Optional list of feature names for recoPixelTrackFeatures.
+        MAX_HITS (int or None): Optional maximum number of hits per track.
+        
+        recHit_mean (torch.Tensor or None): Optional mean values for recHitFeatures normalization.
+        recHit_std (torch.Tensor or None): Optional standard deviation values for recHitFeatures normalization.
+        recoPixelTrack_mean (torch.Tensor or None): Optional mean values for recoPixelTrackFeatures normalization.
+        recoPixelTrack_std (torch.Tensor or None): Optional standard deviation values for recoPixelTrackFeatures normalization.
+        
+        log_vars (list): Optional list of variables to apply logarithmic transformation.
+        clip_vars (list): Optional list of variables to clip to a specified percentile range.
+        log_recHit_vars (list): Optional list of recHit variables to apply logarithmic transformation.
+        EPSILON (float): Small constant to avoid division by zero or log(0) errors.
+        LOW_PERCENTILE (float): Lower percentile for clipping variables.
+        HIGH_PERCENTILE (float): Upper percentile for clipping variables.
+
+    Args:
+        path (str): Path to the serialized .pt file containing the dataset.
+    
+    Example:
+        dataset = TrackDatasetFromFile("path/to/data.pt")
+        print(dataset.recHitFeatures.shape)
+    """
     def __init__(self, path):
         data = torch.load(path)
         self.recHitFeatures = data["recHitFeatures"]           # (N_tracks, max_hits, hit_input_dim)
