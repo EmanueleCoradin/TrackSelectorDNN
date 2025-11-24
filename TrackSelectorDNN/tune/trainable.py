@@ -74,7 +74,8 @@ def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_
     
     model.train()
     total_loss = 0
-
+    total_loss_sym = 0
+    
     for batch in loader:
         hit_features = batch["hit_features"].to(device)
         track_features = batch["track_features"].to(device)
@@ -96,14 +97,16 @@ def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_
             track_features_mirr = track_features_mirr.to(device)
             
             preds_mirr = model(hit_features_mirr, track_features_mirr, mask)
-            loss += lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
-
+            loss_sym = lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
+            loss += loss_sym
+            total_loss_sym += loss_sym.item() * len(labels)
             
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item() * len(labels)
-    return total_loss / len(loader.dataset)
+        
+    return total_loss / len(loader.dataset), total_loss_sym / len(loader.dataset)
 
 
 def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake):
@@ -126,6 +129,7 @@ def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features
     
     model.eval()
     total_loss = 0
+    total_loss_sym = 0
     correct = 0
     n = 0
     with torch.no_grad():
@@ -148,16 +152,15 @@ def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features
                 track_features_mirr = track_features_mirr.to(device)
                 
                 preds_mirr = model(hit_features_mirr, track_features_mirr, mask)
-                loss += lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
-
+                loss_sym = lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
+                total_loss_sym += loss_sym.item() * len(labels)
 
             
             total_loss += loss.item() * len(labels)
-
             preds_bin = (preds > 0).float()
             correct += (preds_bin == labels).sum().item()
             n += len(labels)
-    return total_loss / n, correct / n
+    return total_loss / n, correct / n, total_loss_sym/n
 
 
 # ---------------------------
@@ -244,14 +247,16 @@ def trainable(config):
     for epoch in range(n_epochs):
         if(count_stopping==patience):
             break
-        train_loss = train_one_epoch(model, train_loader, optimizer, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake)
-        val_loss, val_acc = validate(model, val_loader, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake)
+        train_loss, train_loss_sym = train_one_epoch(model, train_loader, optimizer, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake)
+        val_loss, val_acc, val_loss_sym = validate(model, val_loader, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake)
 
         metrics = {
             "epoch": epoch + 1,
             "train_loss": train_loss,
+            "train_loss_sym": train_loss_sym,
             "val_loss": val_loss,
             "val_acc": val_acc,
+            "val_loss_sym": val_loss_sym,
         }
 
         print(f"[Epoch {epoch+1}/{n_epochs}] "
