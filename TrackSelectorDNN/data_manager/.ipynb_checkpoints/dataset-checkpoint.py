@@ -33,6 +33,9 @@ class TrackDatasetFromFile(Dataset):
         EPSILON (float): Small constant to avoid division by zero or log(0) errors.
         LOW_PERCENTILE (float): Lower percentile for clipping variables.
         HIGH_PERCENTILE (float): Upper percentile for clipping variables.
+    do_log: do_log,
+    clip_min: clip_min,
+    climp_max: clip_max
 
     Args:
         path (str): Path to the serialized .pt file containing the dataset.
@@ -67,6 +70,13 @@ class TrackDatasetFromFile(Dataset):
         self.EPSILON = data.get("EPSILON", 1e-8)
         self.LOW_PERCENTILE = data.get("LOW_PERCENTILE", 0.001)
         self.HIGH_PERCENTILE = data.get("HIGH_PERCENTILE", 0.999)
+
+        self.do_log_hit = data.get("do_log_hit", None),
+        self.clip_min_hit = data.get("clip_min_hit", None),
+        self.clip_max_hit = data.get("clip_max_hit", None),
+        self.do_log_track = data.get("do_log_track", None),
+        self.clip_min_track = data.get("clip_min_track", None),
+        self.clip_max_track = data.get("clip_max_track", None),
         
     def __len__(self):
         return len(self.labels)

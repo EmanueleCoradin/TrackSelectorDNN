@@ -72,3 +72,53 @@ class MeanPooling(nn.Module):
 
         pooled = h.sum(dim=1) / counts
         return pooled
+
+# -----------------------------
+# Sum Pooling
+# -----------------------------
+class SumPoolingInference(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, h):
+        """
+        h: (N_tracks, max_hits, latent_dim)
+        NaNs signal padding hits
+        returns: (N_tracks, latent_dim)
+        """
+        mask = ~torch.isnan(h).any(dim=-1)
+        h = torch.where(mask.unsqueeze(-1), h, torch.zeros_like(h)) 
+        pooled = h.sum(dim=1)
+        return pooled
+
+
+# -----------------------------
+# Mean Pooling
+# -----------------------------
+class MeanPoolingInference(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, h, mask=None):
+        """
+        h: (N_tracks, N_hits, latent_dim)
+        NaNs signal padding hits
+
+        returns: (N_tracks, latent_dim)
+        """
+        
+        hit_mask = ~torch.isnan(h).any(dim=-1)           # (N_tracks, N_hits)
+        hit_mask_exp = hit_mask.unsqueeze(-1)            # (N_tracks, N_hits, 1)
+
+        # Replace NaNs with zeros so they don't propagate
+        h = torch.nan_to_num(h, nan=0.0)
+
+        # Zero out invalid hits explicitly
+        h = h * hit_mask_exp
+
+        # Count valid hits per track
+        counts = hit_mask.sum(dim=1).clamp(min=1).unsqueeze(-1)  # (N_tracks, 1)
+
+        pooled = h.sum(dim=1) / counts
+
+        return pooled
