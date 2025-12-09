@@ -77,3 +77,41 @@ class TrackClassifier(nn.Module):
         # NetB
         out = self.netB(pooled, track_features)  # (N_tracks,)
         return out
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+
+class TrackClassifierInference(nn.Module):
+    """
+    Wrapper of TrackClassifier to incorporate the preprocessing and final sigmoid.
+    """
+    def __init__(self, base_model: TrackClassifier, 
+                 pre_hit: nn.Module, pre_track: nn.Module):
+        super().__init__()
+
+        # Keep trained modules
+        self.base = base_model
+
+        # Preprocessing modules
+        self.pre_hit = pre_hit
+        self.pre_track = pre_track
+
+    def forward(self, hit_features, track_features):
+
+        # 1. Preprocessing
+        hit_features  = self.pre_hit(hit_features)      # (N,T,F)
+        track_features = self.pre_track(track_features) # (N,F)
+        # Sanitize nan for safe execution
+        track_features = torch.nan_to_num(track_features, nan=0.0)
+        
+        # 2. Compute mask from NaN locations
+        mask = ~torch.isnan(hit_features).any(dim=-1)   # (N,T)
+        hit_features = torch.nan_to_num(hit_features, nan=0.0)
+       
+        # 3. Reuse the original trained forward
+        logits = self.base(hit_features, track_features, mask)
+
+        #4. Compute probabilities applying the sigmoid function
+        probs = torch.sigmoid(logits)
+        return probs

@@ -1,5 +1,5 @@
 import torch.nn as nn
-from TrackSelectorDNN.models.pooling import SoftmaxPooling, SumPooling, MeanPooling
+from TrackSelectorDNN.models.pooling import SoftmaxPooling, SumPooling, MeanPooling, SumPoolingInference, MeanPoolingInference
 
 # ---- Activation Registry ----
 ACTIVATIONS = {
@@ -25,6 +25,8 @@ POOLING_TYPES = {
     "softmax":   lambda latent_dim: SoftmaxPooling(latent_dim),
     "sum":       lambda latent_dim: SumPooling(),
     "mean":      lambda latent_dim: MeanPooling(),
+    "sum-inference":       lambda latent_dim: SumPoolingInference(),
+    "mean-inference":      lambda latent_dim: MeanPoolingInference(),
 }
 
 def get_pooling(name: str, latent_dim: int):

@@ -15,7 +15,6 @@ from TrackSelectorDNN.tune.utils_logging import (
     save_config,
     save_model_summary,
     CSVLogger
-    #save_checkpoint
 )
 
 # ---------------------------
