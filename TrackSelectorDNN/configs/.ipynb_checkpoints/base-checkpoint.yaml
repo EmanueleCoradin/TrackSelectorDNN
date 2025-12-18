@@ -1,36 +1,49 @@
 # Model architecture
-hit_input_dim: 9
-track_feat_dim: 25
-latent_dim: 16
-pooling_type: "sum"
-
-netA_hidden_dim: 32
-netA_hidden_layers: 2
-netA_batchnorm: True
-netA_activation: "silu"
-
-netB_hidden_dim: 64
-netB_hidden_layers: 2
-netB_batchnorm: True
-netB_activation: "silu"
+model:
+    hit_input_dim: 9
+    track_feat_dim: 25
+    latent_dim: 16
+    pooling_type: "sum"
+    
+    netA_hidden_dim: 32
+    netA_hidden_layers: 2
+    netA_batchnorm: True
+    netA_activation: "silu"
+    
+    netB_hidden_dim: 64
+    netB_hidden_layers: 2
+    netB_batchnorm: True
+    netB_activation: "silu"
 
 # Training setup
-lr: 1.e-3
-weight_decay: 0
-epochs: 5
-batch_size: 128
-patience: 15
-delta: 0
-base_checkpoint_directory: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs"
-idxSymRecHitFeatures: [2, 7]
-idxSymRecoPixelTrackFeatures: [5, 7, 10, 22, 23]
-w_true: 0.60 
-w_fake: 2.91
-lambda_sym: 0.1
+training:
+    epochs: 5
+    batch_size: 128
+    patience: 15
+    delta: 0
+    base_checkpoint_directory: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs"
+
+    symmetry:
+        idxSymRecHitFeatures: [2, 7]
+        idxSymRecoPixelTrackFeatures: [5, 7, 10, 22, 23]
+        lambda_sym: 0.1
+    
+    weights:
+        w_true: 0.60 
+        w_fake: 2.91
+
+    optimizer:
+        name: 'adam'
+        lr: 1.e-3
+        weight_decay: 0
+    
+    scheduler:
+        name: None
 
 # Data
-dataset_type: "production"          # or 'production'
-train_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_train_dataset.pt"  # used only if production
-val_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_val_dataset.pt"
-test_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_test_dataset.pt"
-max_hits: 16
+data:
+    dataset_type: "production"          # or 'production'
+    train_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_train_dataset.pt"  # used only if production
+    val_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_val_dataset.pt"
+    test_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_test_dataset.pt"
+    max_hits: 16
