@@ -9,7 +9,8 @@ from ray.train import Checkpoint
 
 from TrackSelectorDNN.models.track_classifier import TrackClassifier
 from TrackSelectorDNN.data_manager.dataset_factory import get_dataset
-from TrackSelectorDNN.configs.schema import load_config
+from TrackSelectorDNN.train.optim_factory import build_optimizer, build_scheduler
+from TrackSelectorDNN.configs.schema import load_config, Config
 from TrackSelectorDNN.tune.utils_logging import (
     create_run_dir,
     save_config,
@@ -47,7 +48,8 @@ def mirror_inputs(hit_features, track_features, idx_sym_hit_features, idx_sym_tr
     return hf, tf
     
 
-def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake):
+def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake, scheduler, 
+            scheduler_type):
     """
     Train the model for one epoch.
 
@@ -66,11 +68,12 @@ def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_
         lambda_sym (float or None): Weight for symmetry regularization
         w_true (torch.Tensor or None): Weight for positive labels
         w_fake (torch.Tensor or None): Weight for negative labels
-
+        scheduler: 
+        scheduler_type:
+        
     Returns:
         float: Average training loss for the epoch
-    """
-    
+    """  
     model.train()
     total_loss = 0
     total_loss_sym = 0
@@ -102,9 +105,11 @@ def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_
             
         loss.backward()
         optimizer.step()
-
+        if (scheduler is not None) and (scheduler_type == "batch"):
+            scheduler.step()
+            
         total_loss += loss.item() * len(labels)
-        
+    
     return total_loss / len(loader.dataset), total_loss_sym / len(loader.dataset)
 
 
@@ -177,19 +182,21 @@ def trainable(config):
         - Best model checkpointing and metric reporting to Ray
 
     Args:
-        config (dict): Hyperparameter and training configuration dictionary
+        config (dict or ): Hyperparameter and training configuration dictionary
     """
-    
+    if isinstance(config, dict):
+        config = Config(**config)
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    patience = config["patience"]
-    delta = config["delta"]
-    base_checkpoint_directory = config["base_checkpoint_directory"]
-    idx_sym_hit_features = config["idxSymRecHitFeatures"]
-    idx_sym_track_features = config["idxSymRecoPixelTrackFeatures"]
-    lambda_sym = config["lambda_sym"]
-    w_fake = torch.tensor(config["w_fake"], device=device)
-    w_true = torch.tensor(config["w_true"], device=device)
+    patience = config.training.patience
+    delta = config.training.delta
+    base_checkpoint_directory = config.training.base_checkpoint_directory
+    idx_sym_hit_features = config.training.symmetry.idxSymRecHitFeatures
+    idx_sym_track_features = config.training.symmetry.idxSymRecoPixelTrackFeatures
+    lambda_sym = config.training.symmetry.lambda_sym
+    w_fake = torch.tensor(config.training.weights.w_fake, device=device)
+    w_true = torch.tensor(config.training.weights.w_true, device=device)
     
     # Trial directory for this run
     trial_name = None
@@ -209,46 +216,98 @@ def trainable(config):
     train_ds, collate_fn = get_dataset(config, dataset_role="train_path")
     val_ds, _ = get_dataset(config, dataset_role="val_path")
     
-    train_loader = DataLoader(train_ds, batch_size=config["batch_size"],
-                              shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(val_ds, batch_size=config["batch_size"], collate_fn=collate_fn)
+    train_loader = DataLoader(
+        train_ds, 
+        batch_size=config.training.batch_size,
+        shuffle=True, 
+        collate_fn=collate_fn
+    )
+    val_loader = DataLoader(
+        val_ds, 
+        batch_size=config.training.batch_size, 
+        collate_fn=collate_fn
+    )
 
     # Model
     model = TrackClassifier(
-        hit_input_dim=config["hit_input_dim"],
-        track_feat_dim=config["track_feat_dim"],
-        latent_dim=config["latent_dim"],
-        pooling_type=config["pooling_type"],
+        hit_input_dim=config.model.hit_input_dim,
+        track_feat_dim=config.model.track_feat_dim,
+        latent_dim=config.model.latent_dim,
+        pooling_type=config.model.pooling_type,
         
-        netA_hidden_dim=config["netA_hidden_dim"],
-        netA_hidden_layers=config["netA_hidden_layers"],
-        netA_batchnorm=config["netA_batchnorm"],
-        netA_activation=config["netA_activation"],
+        netA_hidden_dim=config.model.netA_hidden_dim,
+        netA_hidden_layers=config.model.netA_hidden_layers,
+        netA_batchnorm=config.model.netA_batchnorm,
+        netA_activation=config.model.netA_activation,
         
-        netB_hidden_dim=config["netB_hidden_dim"],
-        netB_hidden_layers=config["netB_hidden_layers"],
-        netB_batchnorm=config["netB_batchnorm"],
-        netB_activation=config["netB_activation"],
+        netB_hidden_dim=config.model.netB_hidden_dim,
+        netB_hidden_layers=config.model.netB_hidden_layers,
+        netB_batchnorm=config.model.netB_batchnorm,
+        netB_activation=config.model.netB_activation,
     ).to(device)
 
     save_model_summary(model, run_dir)
 
-    optimizer = optim.Adam(model.parameters(), lr=config["lr"], weight_decay=config["weight_decay"])
+    optimizer = build_optimizer(model, config)
+    steps_per_epoch = len(train_loader)
+    if steps_per_epoch == 0:
+        raise RuntimeError("train_loader has zero steps_per_epoch (empty dataset)")
+    n_epochs = config.training.epochs
+    total_steps = n_epochs * steps_per_epoch
 
+    # Three cases:
+    # 1. None → no scheduler
+    # 2. epoch scheduler
+    # 3. batch scheduler
+    scheduler, scheduler_type = build_scheduler(optimizer, config, total_steps)
+    if scheduler is not None:
+        scheduler.last_step = -1
+    
     logger = CSVLogger(run_dir)
-    n_epochs = config["epochs"]
 
     # Initialize best metrics safely
     best_val_loss = float("inf")
     best_metrics = {"val_loss": float("inf"), "val_acc": 0.0, "epoch": 0}
     count_stopping = 0
+    
     # Training loop
     for epoch in range(n_epochs):
         if(count_stopping==patience):
             break
-        train_loss, train_loss_sym = train_one_epoch(model, train_loader, optimizer, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake)
-        val_loss, val_acc, val_loss_sym = validate(model, val_loader, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake)
+            
+        train_loss, train_loss_sym = train_one_epoch(
+            model, 
+            train_loader, 
+            optimizer, 
+            device, 
+            idx_sym_hit_features, 
+            idx_sym_track_features, 
+            lambda_sym, 
+            w_true, 
+            w_fake, 
+            scheduler, 
+            scheduler_type
+        )
+        
+        val_loss, val_acc, val_loss_sym = validate(
+            model, 
+            val_loader, 
+            device, 
+            idx_sym_hit_features, 
+            idx_sym_track_features, 
+            lambda_sym, 
+            w_true, 
+            w_fake
+        )
 
+        if (scheduler is not None) and (scheduler_type == "epoch"):
+            if scheduler_type == "epoch" and config.training.scheduler.name.lower() == "plateau":
+                # ReduceLROnPlateau requires the validation loss
+                scheduler.step(val_loss)
+            else:
+                scheduler.step()
+
+        current_lr = optimizer.param_groups[0]["lr"]
         metrics = {
             "epoch": epoch + 1,
             "train_loss": train_loss,
@@ -256,6 +315,7 @@ def trainable(config):
             "val_loss": val_loss,
             "val_acc": val_acc,
             "val_loss_sym": val_loss_sym,
+            "lr": current_lr,
         }
 
         print(f"[Epoch {epoch+1}/{n_epochs}] "
@@ -295,4 +355,4 @@ def trainable(config):
 if __name__ == "__main__":
     cfg = load_config("base.yaml")
     print(cfg)
-    trainable(cfg.dict())
+    trainable(cfg)

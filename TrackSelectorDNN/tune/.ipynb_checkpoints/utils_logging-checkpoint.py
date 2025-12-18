@@ -3,6 +3,7 @@ import csv
 import datetime
 import yaml
 import torch
+from pydantic import BaseModel
 
 def create_run_dir(base_dir="./runs", trial_name=None):
     """
@@ -34,23 +35,30 @@ def create_run_dir(base_dir="./runs", trial_name=None):
     os.makedirs(run_dir, exist_ok=True)
     return run_dir
 
-
-def save_config(config_dict, run_dir):
+def save_config(config, run_dir):
     """
-    Save a configuration dictionary as a YAML file in the run directory.
+    Save a Pydantic configuration object as a YAML file.
 
     Args:
-        config_dict (dict): Configuration dictionary
-        run_dir (str): Directory where the config.yaml will be saved
+        config (BaseModel): Pydantic config object
+        run_dir (str): Directory where config.yaml will be saved
 
     Returns:
-        str: Path to the saved YAML file
+        str: Full path to the saved YAML file
     """
-    
     path = os.path.join(run_dir, "config.yaml")
+
+    # Convert Pydantic object → nested dict (safe for YAML)
+    if isinstance(config, BaseModel):
+        config_dict = config.model_dump()
+    else:
+        config_dict = config  # fallback, e.g. dict input
+
     with open(path, "w") as f:
-        yaml.safe_dump(config_dict, f)
+        yaml.safe_dump(config_dict, f, sort_keys=False)
+
     return path
+
 
 
 def save_model_summary(model, run_dir):

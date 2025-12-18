@@ -6,23 +6,21 @@ def get_dataset(config, dataset_role="train_path"):
     Returns a Dataset instance and corresponding collate_fn.
     Selection depends on config["dataset_type"].
     """
-    dataset_type = config["dataset_type"]
-
+    dataset_type = config.data.dataset_type
+    
     if dataset_type == "dummy":
-        dataset = DummyTrackDataset(
-            n_tracks=config["n_tracks"],
-            hit_input_dim=config["hit_input_dim"],
-            track_feat_dim=config["track_feat_dim"],
-            max_hits=config["max_hits"],
-            save_path=config.get("dummy_save_path", None),
-            load_path=config.get("dummy_load_path", None),
-        )
-        collate = dummy_collate
+        raise ValueError(f"Dataset type no longer supported: {dataset_type}")
     
     elif dataset_type == "production":
-        dataset = TrackDatasetFromFile(config[dataset_role])
         collate = prod_collate
-
+        if dataset_role == "train_path":
+            dataset = TrackDatasetFromFile(config.data.train_path)
+        elif dataset_role == "val_path":
+            dataset = TrackDatasetFromFile(config.data.val_path)
+        elif dataset_role == "test_path":
+            dataset = TrackDatasetFromFile(config.data.test_path)
+        else:
+            raise ValueError(f"Unknown dataset_role: {dataset_role}")
     else:
         raise ValueError(f"Unknown dataset_type: {dataset_type}")
 
