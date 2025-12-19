@@ -125,3 +125,62 @@ def collate_fn(batch):
         "mask": torch.stack(mask),
         "labels": torch.stack(labels).float()
     }
+
+# -------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
+
+class TrackPreselectorDatasetFromFile(Dataset):
+    """
+    Dataset for fast preselector models.
+    """
+
+    def __init__(self, path):
+        data = torch.load(path, map_location="cpu")
+
+        # --- Required ---
+        self.X = data["recoPixelTrackFeatures_pre"]  # (N, F_pre)
+        self.labels = data.get("labels", None)
+
+        # --- Optional metadata ---
+        self.feature_names = data.get(
+            "recoPixelTrackFeatures_pre_names", None
+        )
+        self.is_onehot = data.get(
+            "recoPixelTrackFeatures_pre_is_onehot", None
+        )
+        self.isHighPurity = data.get("isHighPurity", None)
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, idx):
+        item = {
+            "features": self.X[idx]
+        }
+
+        if self.labels is not None:
+            item["labels"] = self.labels[idx]
+
+        if self.isHighPurity is not None:
+            item["isHighPurity"] = self.isHighPurity[idx]
+
+        return item
+
+    def get_feature_names(self):
+        return self.feature_names
+
+    def get_onehot_mask(self):
+        """
+        Boolean mask of one-hot encoded features.
+        """
+        return self.is_onehot
+
+def preselector_collate_fn(batch):
+    X = torch.stack([b["features"] for b in batch])
+    y = torch.stack([b["labels"] for b in batch]) if "labels" in batch[0] else None
+
+    out = {"features": X}
+    if y is not None:
+        out["labels"] = y.float()
+    return out

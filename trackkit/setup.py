@@ -1,19 +1,18 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="TrackSelectorDNN",
+    name="trackkit",               
     version="0.1",
     packages=find_packages(),
     install_requires=[
-        "torch",
+        "numpy",
+        "scipy",
+        "matplotlib",
+        "pandas",
         "pydantic>=2.0",
     ],
     include_package_data=True,
-    package_data={
-        "TrackSelectorDNN.configs": ["*.yaml"],
-    },
-    description="Package to develope an online track selection DNN",
+    description="Utilities for track feature preprocessing, summarization, and plotting",
     author="Emanuele Coradin",
     author_email="emanuele.coradin01@gmail.com",
-    url="https://github.com/EmanueleCoradin/trackSelectorDNN",
 )

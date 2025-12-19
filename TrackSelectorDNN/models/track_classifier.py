@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from TrackSelectorDNN.models.netA    import NetA
-from TrackSelectorDNN.models.netB    import NetB
+from TrackSelectorDNN.models.netB    import NetB, NetBTrackOnly
 from TrackSelectorDNN.models.registry import get_activation, get_pooling
 
 class TrackClassifier(nn.Module):
@@ -115,3 +115,42 @@ class TrackClassifierInference(nn.Module):
         #4. Compute probabilities applying the sigmoid function
         probs = torch.sigmoid(logits)
         return probs
+
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+class TrackOnlyClassifier(nn.Module):
+    def __init__(self,
+                 track_feat_dim,
+                 hidden_dim,
+                 hidden_layers,
+                 use_batchnorm,
+                 activation)
+        """
+        Lightweight classifier processing just track input features.
+
+        Args:
+            track_feat_dim (int):   Dimension of per-track features.
+            hidden_dim (int):       Width of each hidden layer.
+            hidden_layers (int):    Number of hidden layers before the output.
+            use_batchnorm (bool):   Whether to include BatchNorm1d.
+            activation (nn.Module): Activation function.
+        """
+        super().__init__()
+        
+        # Load the optional parameters
+        act = get_activation(activation)
+        
+        # Build NetB
+        self.netB = NetBTrackOnly(
+            track_feat_dim,
+            hidden_dim,
+            hidden_layers,
+            use_batchnorm,
+            activation
+        )
+
+    def forward(self, track_features):
+        return self.netB(track_features)
+
+
