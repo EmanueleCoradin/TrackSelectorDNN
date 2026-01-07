@@ -1,5 +1,22 @@
 import torch
 from torch.utils.data import Dataset
+from dataclasses import dataclass
+from typing import Optional
+
+# -------------------------------------------------------------------------------------
+
+@dataclass
+class FeatureBundle:
+    """
+    Abstract bundle of features in input to the different models.
+    """
+    hit_features: Optional[torch.Tensor] = None  # (N_tracks, N_hits, hit_input_dim)
+    track_features: Optional[torch.Tensor] = None  # (N_tracks, track_feat_dim)
+    preselect_features: Optional[torch.Tensor] = None  # (N_tracks, F_pre)
+    mask: Optional[torch.Tensor] = None  # (N_tracks, N_hits) boolean
+
+# -------------------------------------------------------------------------------------
+
 
 class TrackDatasetFromFile(Dataset):
     """
@@ -71,25 +88,29 @@ class TrackDatasetFromFile(Dataset):
         self.LOW_PERCENTILE = data.get("LOW_PERCENTILE", 0.001)
         self.HIGH_PERCENTILE = data.get("HIGH_PERCENTILE", 0.999)
 
-        self.do_log_hit = data.get("do_log_hit", None),
-        self.clip_min_hit = data.get("clip_min_hit", None),
-        self.clip_max_hit = data.get("clip_max_hit", None),
-        self.do_log_track = data.get("do_log_track", None),
-        self.clip_min_track = data.get("clip_min_track", None),
-        self.clip_max_track = data.get("clip_max_track", None),
+        self.do_log_hit = data.get("do_log_hit", None)
+        self.clip_min_hit = data.get("clip_min_hit", None)
+        self.clip_max_hit = data.get("clip_max_hit", None)
+        self.do_log_track = data.get("do_log_track", None)
+        self.clip_min_track = data.get("clip_min_track", None)
+        self.clip_max_track = data.get("clip_max_track", None)
         
     def __len__(self):
-        return len(self.labels)
+        return self.recHitFeatures.shape[0]
 
     def __getitem__(self, idx):
         # Return in order: hit_features, track_features, mask, label
-        item = {
-            "hit_features": self.recHitFeatures[idx],
-            "track_features": self.recoPixelTrackFeatures[idx],
-            "mask": self.mask[idx]
-        }
+        features = FeatureBundle(
+            hit_features=self.recHitFeatures[idx],
+            track_features=self.recoPixelTrackFeatures[idx],
+            mask=self.mask[idx]
+        )
+        
+        item = {"features": features}
+        
         if self.labels is not None:
             item["labels"] = self.labels[idx]
+        
         return item
     
     def get_feature_names(self):
@@ -114,20 +135,22 @@ def collate_fn(batch):
     hit_features, track_features, mask, labels = [], [], [], []
 
     for item in batch:
-        hit_features.append(item["hit_features"])# (B, max_hits, hit_input_dim)
-        track_features.append(item["track_features"])# (B, track_feat_dim)
-        mask.append(item["mask"])# (B, max_hits)
-        labels.append(item.get("labels", torch.tensor(0.0)))  # dummy if missing; (B,)
+        features: FeatureBundle = item["features"]
+        hit_features.append(features.hit_features)
+        track_features.append(features.track_features)
+        mask.append(features.mask)
+        if "labels" in item:
+            labels.append(item["labels"])
 
     return {
-        "hit_features": torch.stack(hit_features),
-        "track_features": torch.stack(track_features),
-        "mask": torch.stack(mask),
-        "labels": torch.stack(labels).float()
+        "features": FeatureBundle(
+            hit_features=torch.stack(hit_features),
+            track_features=torch.stack(track_features),
+            mask=torch.stack(mask)
+        ),
+        "labels": torch.stack(labels) if len(labels)!=0 else None
     }
 
-# -------------------------------------------------------------------------------------
-# -------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------
 
 class TrackPreselectorDatasetFromFile(Dataset):
@@ -155,15 +178,12 @@ class TrackPreselectorDatasetFromFile(Dataset):
         return self.X.shape[0]
 
     def __getitem__(self, idx):
-        item = {
-            "features": self.X[idx]
-        }
+        
+        features = FeatureBundle(preselect_features=self.X[idx])
+        item = { "features": features }
 
         if self.labels is not None:
             item["labels"] = self.labels[idx]
-
-        if self.isHighPurity is not None:
-            item["isHighPurity"] = self.isHighPurity[idx]
 
         return item
 
@@ -177,10 +197,23 @@ class TrackPreselectorDatasetFromFile(Dataset):
         return self.is_onehot
 
 def preselector_collate_fn(batch):
-    X = torch.stack([b["features"] for b in batch])
-    y = torch.stack([b["labels"] for b in batch]) if "labels" in batch[0] else None
+    """
+    Collate function for preselector dataset.
+    Each element of batch: (preselect_features, label)
+    """
+    preselect_features, labels = [], []
 
-    out = {"features": X}
-    if y is not None:
-        out["labels"] = y.float()
-    return out
+    for item in batch:
+        features: FeatureBundle = item["features"]
+        preselect_features.append(features.preselect_features)
+        if "labels" in item:
+            labels.append(item["labels"])
+
+    return {
+        "features": FeatureBundle(
+            preselect_features=torch.stack(preselect_features)
+        ),
+        "labels": torch.stack(labels) if len(labels)!=0 else None
+    }
+
+# -------------------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import torch.nn as nn
 # -----------------------------
 # Per-hit encoder: NetA
 # -----------------------------
+
 class NetA(nn.Module):
     def __init__(self, input_dim, hidden_dim, latent_dim, hidden_layers,
                  use_batchnorm, activation):
@@ -45,3 +46,16 @@ class NetA(nn.Module):
         # x: (N_hits_total, input_dim)
         return self.mlp(x)  # (N_hits_total, latent_dim)
 
+# ------------------------------------------------------------------------------
+
+#TODO: Implement the model
+class NetATransformer(nn.Module):
+    """
+    Transformer implementation of the hit features processing.
+    """
+    def __init__(self,input_dim, d_model, n_heads, layers,
+                 latent_dim, dropout):
+        super().__init__()
+    
+    def forward(self, x):
+        return x

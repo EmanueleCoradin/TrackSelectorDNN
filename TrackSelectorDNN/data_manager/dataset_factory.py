@@ -1,4 +1,5 @@
-from TrackSelectorDNN.data_manager.dataset import TrackDatasetFromFile, collate_fn as prod_collate
+from TrackSelectorDNN.data_manager.dataset import TrackDatasetFromFile, TrackPreselectorDatasetFromFile, collate_fn as prod_collate, preselector_collate_fn as pre_collate
+
 from TrackSelectorDNN.data_manager.dummy_dataset import DummyTrackDataset, collate_fn as dummy_collate
 
 def get_dataset(config, dataset_role="train_path"):
@@ -21,6 +22,18 @@ def get_dataset(config, dataset_role="train_path"):
             dataset = TrackDatasetFromFile(config.data.test_path)
         else:
             raise ValueError(f"Unknown dataset_role: {dataset_role}")
+    
+    elif dataset_type == "preselector":
+        collate = pre_collate
+        if dataset_role == "train_path":
+            dataset = TrackPreselectorDatasetFromFile(config.data.train_path)
+        elif dataset_role == "val_path":
+            dataset = TrackPreselectorDatasetFromFile(config.data.val_path)
+        elif dataset_role == "test_path":
+            dataset = TrackPreselectorDatasetFromFile(config.data.test_path)
+        else:
+            raise ValueError(f"Unknown dataset_role: {dataset_role}")
+    
     else:
         raise ValueError(f"Unknown dataset_type: {dataset_type}")
 

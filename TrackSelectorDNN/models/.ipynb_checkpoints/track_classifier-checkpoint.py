@@ -1,62 +1,26 @@
 import torch
 import torch.nn as nn
-from TrackSelectorDNN.models.netA    import NetA
-from TrackSelectorDNN.models.netB    import NetB, NetBTrackOnly
-from TrackSelectorDNN.models.registry import get_activation, get_pooling
+from TrackSelectorDNN.models.factory import build_netA, build_pooling, build_netB
+from TrackSelectorDNN.configs.schema import TrackClassifierConfig, TrackOnlyClassifierConfig
 
 class TrackClassifier(nn.Module):
-    def __init__(self,
-                 hit_input_dim,
-                 track_feat_dim,
-                 latent_dim,
-                 pooling_type,
-                 # --- NetA parameters ---
-                 netA_hidden_dim,
-                 netA_hidden_layers,
-                 netA_batchnorm,
-                 netA_activation,
-                 # --- NetB parameters ---
-                 netB_hidden_dim,
-                 netB_hidden_layers,
-                 netB_batchnorm,
-                 netB_activation):
+    def __init__(self, cfg: TrackClassifierConfig):
         """
         TrackClassifier combining NetA, pooling, and NetB.
 
         Args:
-            hit_input_dim (int):   Input dimension per hit.
-            track_feat_dim (int):  Per-track feature dimension.
-            latent_dim (int):      Latent embedding size.
-            pooling_type (str):    One among POOLING_TYPES.
-            netA_*:                Architecture parameters for NetA.
-            netB_*:                Architecture parameters for NetB.
+             cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
         """
         super().__init__()
         
-        # Load the optional parameters
-        actA = get_activation(netA_activation)
-        actB = get_activation(netB_activation)
-        self.pool = get_pooling(pooling_type, latent_dim)
-        
         # Build NetA
-        self.netA = NetA(
-            input_dim=hit_input_dim,
-            hidden_dim=netA_hidden_dim,
-            latent_dim=latent_dim,
-            hidden_layers=netA_hidden_layers,
-            use_batchnorm=netA_batchnorm,
-            activation=actA
-        )
+        self.netA = build_netA(cfg.netA, cfg.hit_input_dim, cfg.latent_dim)
+
+        # Build pooling
+        self.pool = build_pooling(cfg)
 
         # Build NetB
-        self.netB = NetB(
-            latent_dim=latent_dim,
-            track_feat_dim=track_feat_dim,
-            hidden_dim=netB_hidden_dim,
-            hidden_layers=netB_hidden_layers,
-            use_batchnorm=netB_batchnorm,
-            activation=actB
-        )
+        self.netB = build_netB(cfg.netB, cfg.latent_dim, cfg.track_feat_dim)
 
     def forward(self, hit_features, track_features, mask=None):
         """
@@ -78,8 +42,6 @@ class TrackClassifier(nn.Module):
         out = self.netB(pooled, track_features)  # (N_tracks,)
         return out
 
-# ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------
 
 class TrackClassifierInference(nn.Module):
@@ -117,40 +79,20 @@ class TrackClassifierInference(nn.Module):
         return probs
 
 # ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
+
 class TrackOnlyClassifier(nn.Module):
-    def __init__(self,
-                 track_feat_dim,
-                 hidden_dim,
-                 hidden_layers,
-                 use_batchnorm,
-                 activation)
+    def __init__(self, cfg: TrackOnlyClassifierConfig):
         """
         Lightweight classifier processing just track input features.
 
         Args:
-            track_feat_dim (int):   Dimension of per-track features.
-            hidden_dim (int):       Width of each hidden layer.
-            hidden_layers (int):    Number of hidden layers before the output.
-            use_batchnorm (bool):   Whether to include BatchNorm1d.
-            activation (nn.Module): Activation function.
+            cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
         """
         super().__init__()
         
-        # Load the optional parameters
-        act = get_activation(activation)
-        
-        # Build NetB
-        self.netB = NetBTrackOnly(
-            track_feat_dim,
-            hidden_dim,
-            hidden_layers,
-            use_batchnorm,
-            activation
-        )
+        self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.track_feat_dim)
 
     def forward(self, track_features):
         return self.netB(track_features)
 
-
+# ------------------------------------------------------------------------------
