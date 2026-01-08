@@ -1,7 +1,10 @@
-import torch
-from torch.utils.data import Dataset
+'''
+Module defining datasets for track selection using DNNs.
+'''
 from dataclasses import dataclass
 from typing import Optional
+import torch
+from torch.utils.data import Dataset
 
 # -------------------------------------------------------------------------------------
 

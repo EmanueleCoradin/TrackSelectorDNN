@@ -1,7 +1,12 @@
 import torch
 import torch.nn as nn
+from TrackSelectorDNN.data_manager.dataset_factory import FeatureBundle
 from TrackSelectorDNN.models.factory import build_netA, build_pooling, build_netB
 from TrackSelectorDNN.configs.schema import TrackClassifierConfig, TrackOnlyClassifierConfig
+
+
+#TODO: implement forward with feature bundles
+#-------------------------------------------------------------------------------------
 
 class TrackClassifier(nn.Module):
     def __init__(self, cfg: TrackClassifierConfig):
@@ -41,6 +46,19 @@ class TrackClassifier(nn.Module):
         # NetB
         out = self.netB(pooled, track_features)  # (N_tracks,)
         return out
+    
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            hit_features=features.hit_features,
+            track_features=features.track_features,
+            mask=features.mask
+        )
 
 # ------------------------------------------------------------------------------
 
@@ -78,6 +96,18 @@ class TrackClassifierInference(nn.Module):
         probs = torch.sigmoid(logits)
         return probs
 
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            hit_features=features.hit_features,
+            track_features=features.track_features
+        )
+    
 # ------------------------------------------------------------------------------
 
 class TrackOnlyClassifier(nn.Module):
@@ -94,5 +124,44 @@ class TrackOnlyClassifier(nn.Module):
 
     def forward(self, track_features):
         return self.netB(track_features)
+    
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            track_features=features.track_features
+        )   
+
+# ------------------------------------------------------------------------------
+
+class PreselectorClassifier(nn.Module):
+    def __init__(self, cfg: TrackOnlyClassifierConfig):
+        """
+        Lightweight classifier processing just track input features.
+
+        Args:
+            cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
+        """
+        super().__init__()
+        
+        self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.track_feat_dim)
+
+    def forward(self, preselect_features):
+        return self.netB(preselect_features)
+    
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            preselect_features=features.preselect_features
+        )   
 
 # ------------------------------------------------------------------------------

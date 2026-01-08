@@ -27,7 +27,7 @@ class MLPConfig(BaseModel):
 
 # -------------------------------------------------------------------------------------
 
-class NetAMPLConfig(BaseModel):
+class NetAMLPConfig(BaseModel):
     """
     Configuration schema for a NetA based on a MLP block.
     
@@ -76,6 +76,7 @@ NetAConfig = Annotated[
     ],
     Field(discriminator="kind"),
 ]
+
 # -------------------------------------------------------------------------------------
 
 class NetBMLPConfig(BaseModel):
@@ -128,7 +129,7 @@ class TrackClassifierConfig(BaseModel):
 
     netA: NetAConfig
     netB: NetBConfig
-    
+
 class TrackOnlyClassifierConfig(BaseModel):
     """
     Configuration schema for a track-only classifier operating exclusively
@@ -149,104 +150,6 @@ ModelConfig = Annotated[
 
 # -------------------------------------------------------------------------------------
 
-'''
-YAML examples
-1)
-model:
-  type: track_classifier
-  hit_input_dim: 64
-  track_feat_dim: 16
-  latent_dim: 128
-  pooling_type: mean
-
-  netA:
-    kind: mlp
-    hidden_dim: 128
-    hidden_layers: 3
-    batchnorm: true
-    activation: relu
-
-  netB:
-    hidden_dim: 64
-    hidden_layers: 2
-    batchnorm: false
-    activation: gelu
-
-2)
-model:
-  type: track_classifier
-  hit_input_dim: 64
-  track_feat_dim: 16
-  latent_dim: 128
-  pooling_type: mean
-
-  netA:
-    kind: transformer
-    d_model: 128
-    n_heads: 4
-    n_layers: 3
-    dropout: 0.1
-
-  netB:
-    hidden_dim: 64
-    hidden_layers: 2
-    batchnorm: true
-    activation: relu
-3)
-model:
-  type: track_only
-  track_feat_dim: 16
-
-  netB:
-    hidden_dim: 64
-    hidden_layers: 3
-    batchnorm: true
-    activation: relu
-
-'''
-
-#TODO: finish to replace this with the more general configuration
-'''
-class ModelConfig(BaseModel):
-    """
-    Configuration schema for the TrackSelectorDNN model.
-
-    This class uses Pydantic to define and validate configuration parameters
-    for model architecture.
-    
-    --- Attributes ---
-        hit_input_dim (int): Dimensionality of the input features for hits.
-        track_feat_dim (int): Dimensionality of the track features.
-        latent_dim (int): Size of the latent embedding vector (must be > 0).
-        pooling_type (Literal["sum", "mean", "softmax"]): Pooling method to aggregate the results of NetAs.
-
-        netA_hidden_dim (int): Hidden layer size for network A.
-        netA_hidden_layers (int): Number of hidden layers in network A.
-        netA_batchnorm (bool): Whether to use batch normalization in network A.
-        netA_activation (Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]): Activation function for network A.
-
-        netB_hidden_dim (int): Hidden layer size for network B.
-        netB_hidden_layers (int): Number of hidden layers in network B.
-        netB_batchnorm (bool): Whether to use batch normalization in network B.
-        netB_activation (Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]): Activation function for network B.
-    """
-    
-    hit_input_dim: int  = Field(..., gt=0)
-    track_feat_dim: int  = Field(..., gt=0)
-    latent_dim: int  = Field(..., gt=0)
-    pooling_type: Literal["sum", "mean", "softmax"]
-    
-    netA_hidden_dim: int  = Field(..., gt=0)
-    netA_hidden_layers: int  = Field(..., gt=0)
-    netA_batchnorm: bool 
-    netA_activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
-    
-    netB_hidden_dim: int  = Field(..., gt=0)
-    netB_hidden_layers: int  = Field(..., gt=0)
-    netB_batchnorm: bool
-    netB_activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
-'''
-
 # ------------------------
 # Training Related Config
 # ------------------------
@@ -260,12 +163,13 @@ class SymmetryConfig(BaseModel):
     --- Attributes ---
         idxSymRecHitFeatures (Optional[List[int]]): Indices of hit features to symmetrize.
         idxSymRecoPixelTrackFeatures (Optional[List[int]]): Indices of pixel track features  to symmetrize.
+        idxSymPreselectFeatures (Optional[List[int]]): Indices of preselection features to symmetrize.
         lambda_sym (Optional[float]): Weight for symmetric regularization term.
     """
     idxSymRecHitFeatures: Optional[List[int]] = None
     idxSymRecoPixelTrackFeatures: Optional[List[int]] = None
+    idxSymPreselectFeatures: Optional[List[int]] = None
     lambda_sym: Optional[float] = None
-
 
 class WeightsConfig(BaseModel):
     """
@@ -296,7 +200,7 @@ class OptimizerConfig(BaseModel):
     name: Literal["adam", "adamw"]
     lr: float = Field(..., gt=0)
     weight_decay: float = 0.0
-    
+
 class SchedulerConfig(BaseModel):
     """
     Learning-rate scheduler configuration for the training pipeline.
@@ -435,7 +339,7 @@ class TrainingConfig(BaseModel):
     weights: WeightsConfig
 
 # -------------------------------------------------------------------------------------
-    
+
 # --------------------
 # Data Related Config
 # --------------------
@@ -462,6 +366,9 @@ class DataConfig(BaseModel):
     
     @model_validator(mode="after")
     def check_paths(self):
+        """
+        Ensure that required parameters are provided and valid depending on the scheduler type.
+        """
         if self.dataset_type == "dummy":
             if not self.dummy_load_path:
                 raise ValueError("dummy_load_path is required when dataset_type='dummy'")
@@ -479,7 +386,7 @@ class DataConfig(BaseModel):
         return self
 
 # -------------------------------------------------------------------------------------
-    
+
 # --------------------
 # General Config
 # --------------------    
@@ -497,7 +404,7 @@ class Config(BaseModel):
     model: ModelConfig
     training: TrainingConfig
     data: DataConfig
-        
+
 def load_config(filename: str) -> Config:
     """
     Load a YAML configuration file and return a validated Config instance.

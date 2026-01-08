@@ -1,14 +1,18 @@
+'''
+Module defining TrackClassifier and related classes.
+'''
 import torch
 import torch.nn as nn
-from TrackSelectorDNN.data_manager import FeatureBundle
+from TrackSelectorDNN.data_manager.dataset import FeatureBundle
 from TrackSelectorDNN.models.factory import build_netA, build_pooling, build_netB
 from TrackSelectorDNN.configs.schema import TrackClassifierConfig, TrackOnlyClassifierConfig
 
-
-#TODO: implement forward with feature bundles
 #-------------------------------------------------------------------------------------
 
 class TrackClassifier(nn.Module):
+    """
+    TrackClassifier combining NetA, pooling, and NetB.
+    """
     def __init__(self, cfg: TrackClassifierConfig):
         """
         TrackClassifier combining NetA, pooling, and NetB.
@@ -111,6 +115,9 @@ class TrackClassifierInference(nn.Module):
 # ------------------------------------------------------------------------------
 
 class TrackOnlyClassifier(nn.Module):
+    """
+    Lightweight classifier processing just track input features.
+    """
     def __init__(self, cfg: TrackOnlyClassifierConfig):
         """
         Lightweight classifier processing just track input features.
@@ -139,6 +146,9 @@ class TrackOnlyClassifier(nn.Module):
 # ------------------------------------------------------------------------------
 
 class PreselectorClassifier(nn.Module):
+    """
+    Lightweight classifier processing just track input features.
+    """
     def __init__(self, cfg: TrackOnlyClassifierConfig):
         """
         Lightweight classifier processing just track input features.
@@ -162,6 +172,6 @@ class PreselectorClassifier(nn.Module):
         """
         return self.forward(
             preselect_features=features.preselect_features
-        )   
+        )
 
 # ------------------------------------------------------------------------------

@@ -1,7 +1,10 @@
+'''
+Module to build network models from config objects.
+'''
+
 from TrackSelectorDNN.configs.schema import NetAConfig, NetBConfig, ModelConfig
 from TrackSelectorDNN.models.netA import *
 from TrackSelectorDNN.models.netB import *
-from TrackSelectorDNN.models.track_classifier import TrackClassifier, TrackOnlyClassifier
 from TrackSelectorDNN.models.registry import get_activation, get_pooling
 
 # -------------------------------------------------------------------------------------
@@ -66,14 +69,14 @@ def build_netB(cfg: NetBConfig, latent_dim: int, track_feat_dim: int) -> nn.Modu
         )
     else:
         raise ValueError(f"Unknown NetB kind: {cfg.kind}")
-        
+
 # -------------------------------------------------------------------------------------
 
 def build_model(cfg: ModelConfig) -> nn.Module:
     """
     Build the correct torch.nn.Module from a validated ModelConfig.
     """
-
+    from TrackSelectorDNN.models.track_classifier import TrackClassifier, TrackOnlyClassifier
     if cfg.type == "track_classifier":
         return TrackClassifier(cfg)
 
@@ -82,3 +85,5 @@ def build_model(cfg: ModelConfig) -> nn.Module:
 
     else:
         raise ValueError(f"Unknown model type: {cfg.type}")
+
+# ------------------------------------------------------------------------------------- 

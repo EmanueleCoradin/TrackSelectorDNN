@@ -1,8 +1,15 @@
+'''
+Module defining a dummy dataset for testing track selection DNNs. 
+Currently retained for reference but no longer used.
+'''
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 class DummyTrackDataset(Dataset):
+    '''
+    A dummy dataset generating synthetic track and hit features for testing.
+    '''
     def __init__(self, 
                  n_tracks=1, 
                  hit_input_dim=1, 

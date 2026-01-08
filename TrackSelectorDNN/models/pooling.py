@@ -1,12 +1,24 @@
+"""
+Module defining various pooling layers for track hit features.
+"""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 # -----------------------------
 # Attention-weighted pooling
-# -----------------------------
+# -----------------------------ù
+
 class SoftmaxPooling(nn.Module):
+    """
+    Attention-weighted pooling of hit features.
+    """
+
     def __init__(self, latent_dim):
+        """
+        Args:
+            latent_dim (int): Dimension of per-hit features.
+        """
         super().__init__()
         self.score_net = nn.Sequential(
             nn.Linear(latent_dim, latent_dim),
@@ -35,8 +47,9 @@ class SoftmaxPooling(nn.Module):
 # Sum Pooling
 # -----------------------------
 class SumPooling(nn.Module):
-    def __init__(self):
-        super().__init__()
+    """
+    Sum Pooling of hit features.
+    """
 
     def forward(self, h, mask=None):
         """
@@ -52,9 +65,11 @@ class SumPooling(nn.Module):
 # -----------------------------
 # Mean Pooling
 # -----------------------------
+
 class MeanPooling(nn.Module):
-    def __init__(self):
-        super().__init__()
+    """
+    Mean Pooling of hit features.
+    """
 
     def forward(self, h, mask=None):
         """
@@ -76,9 +91,11 @@ class MeanPooling(nn.Module):
 # -----------------------------
 # Sum Pooling
 # -----------------------------
+
 class SumPoolingInference(nn.Module):
-    def __init__(self):
-        super().__init__()
+    """
+    Sum Pooling of hit features including mask computation.
+    """
 
     def forward(self, h):
         """
@@ -95,9 +112,11 @@ class SumPoolingInference(nn.Module):
 # -----------------------------
 # Mean Pooling
 # -----------------------------
+
 class MeanPoolingInference(nn.Module):
-    def __init__(self):
-        super().__init__()
+    """
+    Mean Pooling of hit features including mask computation.
+    """
 
     def forward(self, h, mask=None):
         """
@@ -106,7 +125,7 @@ class MeanPoolingInference(nn.Module):
 
         returns: (N_tracks, latent_dim)
         """
-        
+
         hit_mask = ~torch.isnan(h).any(dim=-1)           # (N_tracks, N_hits)
         hit_mask_exp = hit_mask.unsqueeze(-1)            # (N_tracks, N_hits, 1)
 
