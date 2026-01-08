@@ -2,9 +2,11 @@
 Module to build network models from config objects.
 '''
 
-from TrackSelectorDNN.configs.schema import NetAConfig, NetBConfig, ModelConfig
-from TrackSelectorDNN.models.netA import *
-from TrackSelectorDNN.models.netB import *
+import torch.nn as nn
+
+from TrackSelectorDNN.configs.schema import  ModelConfig, NetAConfig, NetBConfig
+from TrackSelectorDNN.models.netA import NetA, NetATransformer
+from TrackSelectorDNN.models.netB import NetB, NetBTrackOnly
 from TrackSelectorDNN.models.registry import get_activation, get_pooling
 
 # -------------------------------------------------------------------------------------
@@ -25,7 +27,7 @@ def build_netA(cfg: NetAConfig, input_dim: int, latent_dim: int) -> nn.Module:
             activation=activation,
         )
 
-    elif cfg.kind == "transformer":
+    if cfg.kind == "transformer":
         return NetATransformer(
             input_dim=input_dim,
             d_model=cfg.d_model,
@@ -35,8 +37,7 @@ def build_netA(cfg: NetAConfig, input_dim: int, latent_dim: int) -> nn.Module:
             dropout=cfg.dropout,
         )
 
-    else:
-        raise ValueError(f"Unknown NetA kind: {cfg.kind}")
+    raise ValueError(f"Unknown NetA kind: {cfg.kind}")
 
 # -------------------------------------------------------------------------------------
 
@@ -59,7 +60,7 @@ def build_netB(cfg: NetBConfig, latent_dim: int, track_feat_dim: int) -> nn.Modu
             use_batchnorm=cfg.batchnorm,
             activation=activation,
         )
-    elif cfg.kind == "track_only":
+    if cfg.kind == "track_only":
         return NetBTrackOnly(
             track_feat_dim=track_feat_dim,
             hidden_dim=cfg.hidden_dim,
@@ -67,8 +68,7 @@ def build_netB(cfg: NetBConfig, latent_dim: int, track_feat_dim: int) -> nn.Modu
             use_batchnorm=cfg.batchnorm,
             activation=activation,
         )
-    else:
-        raise ValueError(f"Unknown NetB kind: {cfg.kind}")
+    raise ValueError(f"Unknown NetB kind: {cfg.kind}")
 
 # -------------------------------------------------------------------------------------
 
@@ -76,14 +76,15 @@ def build_model(cfg: ModelConfig) -> nn.Module:
     """
     Build the correct torch.nn.Module from a validated ModelConfig.
     """
-    from TrackSelectorDNN.models.track_classifier import TrackClassifier, TrackOnlyClassifier
+    from TrackSelectorDNN.models.track_classifier import PreselectorClassifier, TrackClassifier, TrackOnlyClassifier
+
     if cfg.type == "track_classifier":
         return TrackClassifier(cfg)
-
-    elif cfg.type == "track_only":
+    if cfg.type == "track_only":
         return TrackOnlyClassifier(cfg)
+    if cfg.type == "preselector":
+        return PreselectorClassifier(cfg)
 
-    else:
-        raise ValueError(f"Unknown model type: {cfg.type}")
+    raise ValueError(f"Unknown model type: {cfg.type}")
 
 # ------------------------------------------------------------------------------------- 

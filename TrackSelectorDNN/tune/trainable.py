@@ -2,24 +2,25 @@
 Module defining the Ray Tune trainable for TrackClassifier training.
 """
 
-import os
 import json
+import os
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from ray.air import session
 from ray.train import Checkpoint
 
-from TrackSelectorDNN.models.factory import build_model
+from TrackSelectorDNN.configs.schema import Config, load_config
 from TrackSelectorDNN.data_manager.dataset import FeatureBundle
 from TrackSelectorDNN.data_manager.dataset_factory import get_dataset
+from TrackSelectorDNN.models.factory import build_model
 from TrackSelectorDNN.train.optim_factory import build_optimizer, build_scheduler
-from TrackSelectorDNN.configs.schema import load_config, Config
 from TrackSelectorDNN.tune.utils_logging import (
+    CSVLogger,
     create_run_dir,
     save_config,
     save_model_summary,
-    CSVLogger
 )
 
 # ---------------------------
@@ -68,16 +69,6 @@ def mirror_inputs(
         mask=features.mask
     )
 
-def bundle_to_device(features: FeatureBundle, device) -> FeatureBundle:
-    """
-    Move all tensors in FeatureBundle to specified device.
-    """
-    for name, value in vars(features).items():
-        if torch.is_tensor(value):
-            setattr(features, name, value.to(device))
-    return features
-
-
 def train_one_epoch(
         model,
         loader,
@@ -122,7 +113,7 @@ def train_one_epoch(
     total_loss_sym = 0
 
     for batch in loader:
-        features = bundle_to_device(batch["features"], device)
+        features = batch["features"].to(device)
         labels = batch["labels"].to(device)
 
         optimizer.zero_grad()
@@ -141,7 +132,7 @@ def train_one_epoch(
             ]):
 
             features_mirr = mirror_inputs(features, idx_sym_hit_features, idx_sym_track_features, idx_sym_preselect_features)
-            features_mirr = bundle_to_device(features_mirr, device)
+            features_mirr = features_mirr.to(device)
 
             preds_mirr = model.forward_bundle(features_mirr)
             loss_sym = lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
@@ -193,7 +184,7 @@ def validate(
     n = 0
     with torch.no_grad():
         for batch in loader:
-            features: FeatureBundle = bundle_to_device(batch["features"], device)
+            features: FeatureBundle = batch["features"].to(device)
             labels = batch["labels"].to(device)
 
             preds = model.forward_bundle(features)
@@ -215,7 +206,7 @@ def validate(
                     idx_sym_preselect_features
                 )
 
-                features_mirr = bundle_to_device(features_mirr, device)
+                features_mirr = features_mirr.to(device)
 
                 preds_mirr = model.forward_bundle(features_mirr)
                 loss_sym = lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
@@ -280,14 +271,14 @@ def trainable(config):
     val_ds, _ = get_dataset(config, dataset_role="val_path")
 
     train_loader = DataLoader(
-        train_ds, 
+        train_ds,
         batch_size=config.training.batch_size,
-        shuffle=True, 
+        shuffle=True,
         collate_fn=collate_fn
     )
     val_loader = DataLoader(
-        val_ds, 
-        batch_size=config.training.batch_size, 
+        val_ds,
+        batch_size=config.training.batch_size,
         collate_fn=collate_fn
     )
 

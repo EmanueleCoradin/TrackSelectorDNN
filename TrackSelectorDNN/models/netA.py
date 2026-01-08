@@ -1,6 +1,7 @@
 """
 Module defining the NetA model, processing per-hit features.
 """
+
 import torch
 import torch.nn as nn
 

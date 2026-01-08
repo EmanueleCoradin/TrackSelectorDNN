@@ -1,8 +1,10 @@
 '''
 Module defining datasets for track selection using DNNs.
 '''
+
 from dataclasses import dataclass
 from typing import Optional
+
 import torch
 from torch.utils.data import Dataset
 
@@ -17,6 +19,16 @@ class FeatureBundle:
     track_features: Optional[torch.Tensor] = None  # (N_tracks, track_feat_dim)
     preselect_features: Optional[torch.Tensor] = None  # (N_tracks, F_pre)
     mask: Optional[torch.Tensor] = None  # (N_tracks, N_hits) boolean
+
+    def to(self, device: torch.device) -> "FeatureBundle":
+        """
+        Move all tensors in FeatureBundle to specified device.
+        """
+
+        for name, value in vars(self).items():
+            if torch.is_tensor(value):
+                setattr(self, name, value.to(device))
+        return self
 
 # -------------------------------------------------------------------------------------
 

@@ -1,6 +1,7 @@
 '''
 Module to create datasets based on configuration.
 '''
+
 from TrackSelectorDNN.data_manager.dataset import (
     TrackDatasetFromFile,
     TrackPreselectorDatasetFromFile,

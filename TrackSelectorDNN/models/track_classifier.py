@@ -1,11 +1,13 @@
 '''
 Module defining TrackClassifier and related classes.
 '''
+
 import torch
 import torch.nn as nn
+
 from TrackSelectorDNN.data_manager.dataset import FeatureBundle
-from TrackSelectorDNN.models.factory import build_netA, build_pooling, build_netB
 from TrackSelectorDNN.configs.schema import TrackClassifierConfig, TrackOnlyClassifierConfig
+from TrackSelectorDNN.models.factory import build_netA, build_netB, build_pooling
 
 #-------------------------------------------------------------------------------------
 
@@ -158,7 +160,7 @@ class PreselectorClassifier(nn.Module):
         """
         super().__init__()
         
-        self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.track_feat_dim)
+        self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.preselector_feat_dim)
 
     def forward(self, preselect_features):
         return self.netB(preselect_features)

@@ -1,6 +1,6 @@
 """
 track_utils package
-==================
+===================
 Utilities for track feature preprocessing, summarization, and plotting.
 
 Submodules:
@@ -9,54 +9,73 @@ Submodules:
 - summary
 """
 
-# Expose submodules
-from . import preprocessing
+# -----------------------------------------------------------------------------
+# Submodules
+# -----------------------------------------------------------------------------
 from . import plotting
+from . import preprocessing
 from . import summary
 
-# Expose most-used functions at package level
+# -----------------------------------------------------------------------------
+# Preprocessing utilities
+# -----------------------------------------------------------------------------
 from .preprocessing import (
-    normalize_features,
-    normalize_2d,
-    normalize_features_masked,
     clip_outliers,
     clip_outliers_3d,
-    masked_log_transform,
     compute_percentile_bounds,
-    masked_flatten
+    masked_flatten,
+    masked_log_transform,
+    normalize_2d,
+    normalize_features,
+    normalize_features_masked,
 )
 
+# -----------------------------------------------------------------------------
+# Plotting utilities
+# -----------------------------------------------------------------------------
 from .plotting import (
+    plot_cms_tracker_background,
     plot_feature_distributions,
     plot_single_feature,
-    plot_cms_tracker_background
 )
 
+# -----------------------------------------------------------------------------
+# Summary utilities
+# -----------------------------------------------------------------------------
 from .summary import (
+    flag_outliers,
+    print_summary_table,
     summarize_features,
     summarize_recHits,
-    print_summary_table,
-    flag_outliers
 )
 
+# -----------------------------------------------------------------------------
 # Public API
+# -----------------------------------------------------------------------------
 __all__ = [
+    # submodules
     "preprocessing",
     "plotting",
     "summary",
-    "normalize_features",
-    "normalize_2d",
-    "normalize_features_masked",
+
+    # preprocessing
     "clip_outliers",
     "clip_outliers_3d",
-    "masked_log_transform",
     "compute_percentile_bounds",
     "masked_flatten",
+    "masked_log_transform",
+    "normalize_2d",
+    "normalize_features",
+    "normalize_features_masked",
+
+    # plotting
+    "plot_cms_tracker_background",
     "plot_feature_distributions",
     "plot_single_feature",
-    "plot_cms_tracker_background",
+
+    # summary
+    "flag_outliers",
+    "print_summary_table",
     "summarize_features",
     "summarize_recHits",
-    "print_summary_table",
-    "flag_outliers"
 ]

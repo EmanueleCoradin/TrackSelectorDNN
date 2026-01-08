@@ -1,19 +1,24 @@
 # Model architecture
 model:
+    type: "track_classifier"
     hit_input_dim: 9
     track_feat_dim: 25
     latent_dim: 16
     pooling_type: "sum"
-    
-    netA_hidden_dim: 32
-    netA_hidden_layers: 2
-    netA_batchnorm: True
-    netA_activation: "silu"
-    
-    netB_hidden_dim: 64
-    netB_hidden_layers: 2
-    netB_batchnorm: True
-    netB_activation: "silu"
+
+    netA:
+        kind: "mlp"
+        hidden_dim: 32
+        hidden_layers: 2
+        batchnorm: True
+        activation: "silu"
+
+    netB:
+        kind: "mlp"
+        hidden_dim: 64
+        hidden_layers: 2
+        batchnorm: True
+        activation: "silu"
 
 # Training setup
 training:

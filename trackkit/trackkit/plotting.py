@@ -248,7 +248,7 @@ def plot_cms_tracker_background(
     save_path : str or None, optional
         If given, save figure to this path
     """
-    
+
     # Flatten hits and apply mask
     r_hits = true_hits[..., r_idx][isRecHit_true]
     z_hits = true_hits[..., z_idx][isRecHit_true]

@@ -19,7 +19,6 @@ model:
         batchnorm: True
         activation: "relu"
 
-# Training setup
 training:
     epochs: 75
     batch_size: 128
@@ -30,7 +29,7 @@ training:
     symmetry:
         idxSymRecHitFeatures: [2, 7]
         idxSymRecoPixelTrackFeatures: [5, 7, 10, 22, 23]
-        lambda_sym: 0020115041960831925
+        lambda_sym: 0.0020115041960831925
     
     weights:
         w_true: 0.60 
@@ -44,7 +43,6 @@ training:
     scheduler:
         name: 'none'
 
-# Data
 data:
     dataset_type: "production"
     train_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_train_dataset.pt"  # used only if production

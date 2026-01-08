@@ -2,11 +2,12 @@
 Module for logging utilities.
 """
 
-import os
 import csv
 import datetime
-import yaml
+import os
+
 import torch
+import yaml
 from pydantic import BaseModel
 
 def create_run_dir(base_dir="./runs", trial_name=None):

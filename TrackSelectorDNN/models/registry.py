@@ -3,9 +3,13 @@ Module for registries of activations and pooling layers.
 """
 
 import torch.nn as nn
+
 from TrackSelectorDNN.models.pooling import (
-    SoftmaxPooling, SumPooling, MeanPooling,
-    SumPoolingInference, MeanPoolingInference
+    MeanPooling,
+    MeanPoolingInference,
+    SoftmaxPooling,
+    SumPooling,
+    SumPoolingInference,
 )
 
 # ---- Activation Registry ----

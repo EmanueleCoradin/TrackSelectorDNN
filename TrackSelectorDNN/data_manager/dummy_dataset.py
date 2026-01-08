@@ -3,6 +3,7 @@ Module defining a dummy dataset for testing track selection DNNs.
 Currently retained for reference but no longer used.
 '''
 import numpy as np
+
 import torch
 from torch.utils.data import Dataset
 

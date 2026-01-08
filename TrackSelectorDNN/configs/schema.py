@@ -1,13 +1,21 @@
+"""
+Configuration schema for the TrackSelectorDNN model and training pipeline.
+"""
+
 from importlib import resources
-from typing import Literal, Optional, List, Union, Annotated
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pathlib import Path
+from typing import Annotated, List, Literal, Optional, Union
+
 import yaml
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+#-----------------------------------------------------------------------------
 
 # ---------------------
 # Model Related Config
 # ---------------------
 
-# -------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 class MLPConfig(BaseModel):
     """
@@ -140,14 +148,24 @@ class TrackOnlyClassifierConfig(BaseModel):
     track_feat_dim: int = Field(gt=0)
     netB: NetBConfig
 
+class PreselectorClassifierConfig(BaseModel):
+    """
+    Configuration schema for a preselector classifier operating 
+    on per-track features.
+    """
+    type: Literal["preselector"]
+
+    preselector_feat_dim: int = Field(gt=0)
+    netB: NetBConfig
+
 ModelConfig = Annotated[
     Union[
         TrackClassifierConfig,
         TrackOnlyClassifierConfig,
+        PreselectorClassifierConfig,
     ],
     Field(discriminator="type"),
 ]
-
 # -------------------------------------------------------------------------------------
 
 # ------------------------
@@ -353,7 +371,7 @@ class DataConfig(BaseModel):
         dummy_load_path (Optional[str]): Path to dummy dataset (required if dataset_type is "dummy").
         train_path (Optional[str]): Path to training dataset (required if dataset_type is "production", "preselector").
         val_path (Optional[str]): Path to validation dataset (required if dataset_type is "production", "preselector").
-        test_path (Optional[str]): Path to test dataset (required if dataset_type is "production", "preselector").
+        test_path (Optional[str]): Path to test dataset.
         max_hits (int): Maximum number of hits per track.
     """
     
@@ -375,7 +393,7 @@ class DataConfig(BaseModel):
 
         if self.dataset_type == "production" or self.dataset_type == "preselector":
             missing = [
-                name for name in ("train_path", "val_path", "test_path")
+                name for name in ("train_path", "val_path")
                 if getattr(self, name) is None
             ]
             if missing:
@@ -405,24 +423,19 @@ class Config(BaseModel):
     training: TrainingConfig
     data: DataConfig
 
-def load_config(filename: str) -> Config:
+def load_config(filename: str | Path) -> Config:
     """
-    Load a YAML configuration file and return a validated Config instance.
-
-    Args:
-        filename (str): Name of the YAML file inside the TrackSelectorDNN.configs package.
-
-    Returns:
-        Config: Pydantic-validated configuration object with nested blocks:
-            - model
-            - training
-            - data
+    Load a YAML configuration file from either:
+    - a filesystem path
+    - or the TrackSelectorDNN.configs package
     """
-    # Use importlib.resources to read the YAML file from the package
-    with resources.open_text("TrackSelectorDNN.configs", filename) as f:
-        raw = yaml.safe_load(f)
+    if isinstance(filename, (str, Path)) and Path(filename).exists():
+        with Path(filename).open("r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f)
+    else:
+        with resources.open_text("TrackSelectorDNN.configs", filename) as f:
+            raw = yaml.safe_load(f)
 
-    # The raw YAML already matches the nested Config structure
     return Config(**raw)
 
 # -------------------------------------------------------------------------------------
