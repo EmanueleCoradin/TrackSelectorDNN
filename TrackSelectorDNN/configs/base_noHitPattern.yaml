@@ -1,0 +1,47 @@
+model:
+    type: "track_classifier"
+    hit_input_dim: 9
+    track_feat_dim: 23
+    latent_dim: 16
+    pooling_type: "mean"
+
+    netA:
+        kind: "mlp"
+        hidden_dim: 64
+        hidden_layers: 2
+        batchnorm: True
+        activation: "relu"
+
+    netB: 
+        kind: "mlp"
+        hidden_dim: 32
+        hidden_layers: 3
+        batchnorm: True
+        activation: "relu"
+
+training:
+    epochs: 75
+    batch_size: 128
+    patience: 15
+    delta: 0
+    base_checkpoint_directory: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs-noHitPattern"
+
+    symmetry:
+    
+    weights:
+        w_true: 0.60 
+        w_fake: 2.91
+
+    optimizer:
+        name: 'adam'
+        lr: 0.0017334529129498309
+        weight_decay: 2.679880950553629e-05
+    
+    scheduler:
+        name: 'none'
+
+data:
+    dataset_type: "production"
+    train_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_train_dataset_noHitPattern.pt"  # used only if production
+    val_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_val_dataset_noHitPattern.pt"
+    max_hits: 16
