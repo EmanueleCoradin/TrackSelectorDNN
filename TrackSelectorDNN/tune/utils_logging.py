@@ -1,8 +1,13 @@
-import os
+"""
+Module for logging utilities.
+"""
+
 import csv
 import datetime
-import yaml
+import os
+
 import torch
+import yaml
 from pydantic import BaseModel
 
 def create_run_dir(base_dir="./runs", trial_name=None):
@@ -23,7 +28,7 @@ def create_run_dir(base_dir="./runs", trial_name=None):
         Otherwise:
             runs/YYYY-MM-DD_HH-MM-SS/
     """
-    
+
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     if trial_name:
@@ -60,7 +65,6 @@ def save_config(config, run_dir):
     return path
 
 
-
 def save_model_summary(model, run_dir):
     """
     Save a model architecture summary to a text file in the run directory.
@@ -78,7 +82,6 @@ def save_model_summary(model, run_dir):
         f.write(str(model))
     return path
 
-
 class CSVLogger:
     """
     Minimal CSV logger for recording training or validation metrics.
@@ -93,10 +96,14 @@ class CSVLogger:
         file (TextIO): File handle
         writer (csv.DictWriter): CSV writer object
     """
-    
+
     def __init__(self, run_dir):
+        """
+        Initialize the CSV logger.
+        run_dir: Directory where metrics.csv will be stored.
+        """
         self.path = os.path.join(run_dir, "metrics.csv")
-        self.file = open(self.path, "w", newline="")
+        self.file = open(self.path, "w", newline="", encoding="utf-8")
         self.writer = None
 
     def log(self, metrics: dict):
@@ -114,7 +121,6 @@ class CSVLogger:
 
     def close(self):
         self.file.close()
-
 
 def save_checkpoint(model, run_dir, filename="checkpoint.pt"):
     """

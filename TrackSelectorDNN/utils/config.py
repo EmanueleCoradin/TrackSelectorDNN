@@ -1,6 +1,16 @@
+"""
+Module for configuration loading.
+"""
+
 import yaml
-from models.registry import get_activation
 
 def load_config(path):
-    with open(path, "r") as f:
+    """
+    Load a YAML configuration file.
+    Args:
+        path (str): Path to the YAML config file.  
+    Returns:
+        dict: Configuration as a nested dictionary.
+    """
+    with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)

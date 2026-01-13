@@ -1,3 +1,7 @@
+"""
+Module for feature preprocessing: log transform, clipping, normalization.
+"""
+
 import torch
 import torch.nn as nn
 
@@ -7,15 +11,18 @@ class FeaturePreprocessing(nn.Module):
     *last feature dimension*. Works with both:
         - track features:          (B, F)
         - per-hit features:        (B, T, F)
-
-    Args:
-        mean:     tensor (..., F) or None
-        std:      tensor (..., F) or None
-        clip_min: tensor (..., F) or None
-        clip_max: tensor (..., F) or None
-        do_log:   boolean tensor (..., F) or None
     """
+
     def __init__(self, mean=None, std=None, clip_min=None, clip_max=None, do_log=None):
+        """
+        Args:
+            mean:     tensor (..., F) or None
+            std:      tensor (..., F) or None
+            clip_min: tensor (..., F) or None
+            clip_max: tensor (..., F) or None
+            do_log:   boolean tensor (..., F) or None
+        """
+
         super().__init__()
 
         # Register buffers (saved in state_dict & ONNX-safe)
@@ -32,7 +39,9 @@ class FeaturePreprocessing(nn.Module):
                 setattr(self, name, None)
 
     def forward(self, x):
-        # x: (B, F) or (B, T, F)
+        """
+        x: (B, F) or (B, T, F)
+        """
 
         # Broadcast do_log to last dimension
         if self.do_log is not None:

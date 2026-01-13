@@ -1,62 +1,37 @@
+'''
+Module defining TrackClassifier and related classes.
+'''
+
 import torch
 import torch.nn as nn
-from TrackSelectorDNN.models.netA    import NetA
-from TrackSelectorDNN.models.netB    import NetB
-from TrackSelectorDNN.models.registry import get_activation, get_pooling
+
+from TrackSelectorDNN.data_manager.dataset import FeatureBundle
+from TrackSelectorDNN.configs.schema import TrackClassifierConfig, TrackOnlyClassifierConfig
+from TrackSelectorDNN.models.factory import build_netA, build_netB, build_pooling
+
+#-------------------------------------------------------------------------------------
 
 class TrackClassifier(nn.Module):
-    def __init__(self,
-                 hit_input_dim,
-                 track_feat_dim,
-                 latent_dim,
-                 pooling_type,
-                 # --- NetA parameters ---
-                 netA_hidden_dim,
-                 netA_hidden_layers,
-                 netA_batchnorm,
-                 netA_activation,
-                 # --- NetB parameters ---
-                 netB_hidden_dim,
-                 netB_hidden_layers,
-                 netB_batchnorm,
-                 netB_activation):
+    """
+    TrackClassifier combining NetA, pooling, and NetB.
+    """
+    def __init__(self, cfg: TrackClassifierConfig):
         """
         TrackClassifier combining NetA, pooling, and NetB.
 
         Args:
-            hit_input_dim (int):   Input dimension per hit.
-            track_feat_dim (int):  Per-track feature dimension.
-            latent_dim (int):      Latent embedding size.
-            pooling_type (str):    One among POOLING_TYPES.
-            netA_*:                Architecture parameters for NetA.
-            netB_*:                Architecture parameters for NetB.
+             cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
         """
         super().__init__()
         
-        # Load the optional parameters
-        actA = get_activation(netA_activation)
-        actB = get_activation(netB_activation)
-        self.pool = get_pooling(pooling_type, latent_dim)
-        
         # Build NetA
-        self.netA = NetA(
-            input_dim=hit_input_dim,
-            hidden_dim=netA_hidden_dim,
-            latent_dim=latent_dim,
-            hidden_layers=netA_hidden_layers,
-            use_batchnorm=netA_batchnorm,
-            activation=actA
-        )
+        self.netA = build_netA(cfg.netA, cfg.hit_input_dim, cfg.latent_dim)
+
+        # Build pooling
+        self.pool = build_pooling(cfg)
 
         # Build NetB
-        self.netB = NetB(
-            latent_dim=latent_dim,
-            track_feat_dim=track_feat_dim,
-            hidden_dim=netB_hidden_dim,
-            hidden_layers=netB_hidden_layers,
-            use_batchnorm=netB_batchnorm,
-            activation=actB
-        )
+        self.netB = build_netB(cfg.netB, cfg.latent_dim, cfg.track_feat_dim)
 
     def forward(self, hit_features, track_features, mask=None):
         """
@@ -73,13 +48,24 @@ class TrackClassifier(nn.Module):
     
         # Pooling
         pooled = self.pool(h, mask)  # (N_tracks, latent_dim)
-    
+
         # NetB
         out = self.netB(pooled, track_features)  # (N_tracks,)
         return out
 
-# ------------------------------------------------------------------------------
-# ------------------------------------------------------------------------------
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            hit_features=features.hit_features,
+            track_features=features.track_features,
+            mask=features.mask
+        )
+
 # ------------------------------------------------------------------------------
 
 class TrackClassifierInference(nn.Module):
@@ -115,3 +101,79 @@ class TrackClassifierInference(nn.Module):
         #4. Compute probabilities applying the sigmoid function
         probs = torch.sigmoid(logits)
         return probs
+
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            hit_features=features.hit_features,
+            track_features=features.track_features
+        )
+
+# ------------------------------------------------------------------------------
+
+class TrackOnlyClassifier(nn.Module):
+    """
+    Lightweight classifier processing just track input features.
+    """
+    def __init__(self, cfg: TrackOnlyClassifierConfig):
+        """
+        Lightweight classifier processing just track input features.
+
+        Args:
+            cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
+        """
+        super().__init__()
+
+        self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.track_feat_dim)
+
+    def forward(self, track_features):
+        return self.netB(track_features)
+
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            track_features=features.track_features
+        )
+
+# ------------------------------------------------------------------------------
+
+class PreselectorClassifier(nn.Module):
+    """
+    Lightweight classifier processing just track input features.
+    """
+    def __init__(self, cfg: TrackOnlyClassifierConfig):
+        """
+        Lightweight classifier processing just track input features.
+
+        Args:
+            cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
+        """
+        super().__init__()
+
+        self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.preselector_feat_dim)
+
+    def forward(self, preselect_features):
+        return self.netB(preselect_features)
+
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
+
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            preselect_features=features.preselect_features
+        )
+
+# ------------------------------------------------------------------------------

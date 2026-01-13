@@ -1,55 +1,87 @@
-import os
+"""
+Module defining the Ray Tune trainable for TrackClassifier training.
+"""
+
 import json
+import os
+
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader
 from ray.air import session
 from ray.train import Checkpoint
 
-from TrackSelectorDNN.models.track_classifier import TrackClassifier
+from TrackSelectorDNN.configs.schema import Config, load_config
+from TrackSelectorDNN.data_manager.dataset import FeatureBundle
 from TrackSelectorDNN.data_manager.dataset_factory import get_dataset
+from TrackSelectorDNN.models.factory import build_model
 from TrackSelectorDNN.train.optim_factory import build_optimizer, build_scheduler
-from TrackSelectorDNN.configs.schema import load_config, Config
 from TrackSelectorDNN.tune.utils_logging import (
+    CSVLogger,
     create_run_dir,
     save_config,
     save_model_summary,
-    CSVLogger
 )
 
 # ---------------------------
 # Utility functions
 # ---------------------------
 
-def mirror_inputs(hit_features, track_features, idx_sym_hit_features, idx_sym_track_features):
+
+def mirror_inputs(
+        features: FeatureBundle, 
+        idx_sym_hit_features=None,
+        idx_sym_track_features=None,
+        idx_sym_preselect_features=None
+) -> FeatureBundle:
     """
-    Apply symmetric mirroring to specified hit and track features.
+    Apply symmetric mirroring to specified features in FeatureBundle.
 
     Args:
-        hit_features (torch.Tensor): Tensor of shape (batch_size, max_hits, hit_input_dim)
-        track_features (torch.Tensor): Tensor of shape (batch_size, track_feat_dim)
-        idx_sym_hit_features (list[int] or None): Indices of recHit features to mirror
+        features (FeatureBundle): Input features
+        idx_sym_hit_features (list[int] or None): Indices of hit features to mirror
         idx_sym_track_features (list[int] or None): Indices of track features to mirror
+        idx_sym_preselect_features (list[int] or None): Indices of preselect features
 
     Returns:
-        tuple(torch.Tensor, torch.Tensor): Mirrored hit_features and track_features
+        FeatureBundle: Mirrored features
     """
-    
-    hf = hit_features.clone() 
-    tf = track_features.clone()
+    hit_features = features.hit_features.clone() if features.hit_features is not None else None
+    track_features = features.track_features.clone() if features.track_features is not None else None
+    preselect_features = features.preselect_features.clone() if features.preselect_features is not None else None
 
-    if idx_sym_hit_features is not None:
+    if (idx_sym_hit_features is not None) and (features.hit_features is not None):
         for idx in idx_sym_hit_features:
-            hf[:,:,idx]*=-1
-    if idx_sym_track_features is not None:
-        for idx in idx_sym_track_features:
-            tf[:,idx]*=-1
-    return hf, tf
-    
+            hit_features[:,:,idx]*=-1
 
-def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake, scheduler, 
-            scheduler_type):
+    if (idx_sym_track_features is not None) and (features.track_features is not None):
+        for idx in idx_sym_track_features:
+            track_features[:,idx]*=-1
+
+    if (idx_sym_preselect_features is not None) and (features.preselect_features is not None):
+        for idx in idx_sym_preselect_features:
+            preselect_features[:,idx]*=-1
+
+    return FeatureBundle(
+        hit_features=hit_features,
+        track_features=track_features,
+        preselect_features=preselect_features,
+        mask=features.mask
+    )
+
+def train_one_epoch(
+        model,
+        loader,
+        optimizer,
+        device,
+        idx_sym_hit_features,
+        idx_sym_track_features,
+        idx_sym_preselect_features,
+        lambda_sym,
+        w_true,
+        w_fake,
+        scheduler,
+        scheduler_type):
     """
     Train the model for one epoch.
 
@@ -65,55 +97,68 @@ def train_one_epoch(model, loader, optimizer, device, idx_sym_hit_features, idx_
         device (str): "cuda" or "cpu"
         idx_sym_hit_features (list[int] or None): Indices of hit features to symmetrtize
         idx_sym_track_features (list[int] or None): Indices of track features to symmetrize
+        idx_sym_preselect_features (list[int] or None): Indices of preselect features to symmetrize
         lambda_sym (float or None): Weight for symmetry regularization
         w_true (torch.Tensor or None): Weight for positive labels
         w_fake (torch.Tensor or None): Weight for negative labels
-        scheduler: 
-        scheduler_type:
-        
+        scheduler: Learning rate scheduler
+        scheduler_type: Type of scheduler ("epoch" or "batch")
+
     Returns:
         float: Average training loss for the epoch
-    """  
+    """
+
     model.train()
     total_loss = 0
     total_loss_sym = 0
-    
+
     for batch in loader:
-        hit_features = batch["hit_features"].to(device)
-        track_features = batch["track_features"].to(device)
-        mask = batch["mask"].to(device)
+        features = batch["features"].to(device)
         labels = batch["labels"].to(device)
 
         optimizer.zero_grad()
-        preds = model(hit_features, track_features, mask)
-        
+        preds = model.forward_bundle(features)
+
         if (w_true is not None)and (w_fake is not None):
             weight = torch.where(labels==1, w_true, w_fake)
             loss = nn.functional.binary_cross_entropy_with_logits(preds, labels, weight=weight)
         else:
             loss = nn.functional.binary_cross_entropy_with_logits(preds, labels)
 
-        if ((idx_sym_hit_features is not None) or (idx_sym_track_features is not None)) and lambda_sym is not None:
-            hit_features_mirr, track_features_mirr = mirror_inputs(hit_features, track_features, idx_sym_hit_features, idx_sym_track_features)
-            hit_features_mirr = hit_features_mirr.to(device)
-            track_features_mirr = track_features_mirr.to(device)
-            
-            preds_mirr = model(hit_features_mirr, track_features_mirr, mask)
+        if lambda_sym is not None and any([
+            idx_sym_hit_features is not None,
+            idx_sym_track_features is not None,
+            idx_sym_preselect_features is not None
+            ]):
+
+            features_mirr = mirror_inputs(features, idx_sym_hit_features, idx_sym_track_features, idx_sym_preselect_features)
+            features_mirr = features_mirr.to(device)
+
+            preds_mirr = model.forward_bundle(features_mirr)
             loss_sym = lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
             loss += loss_sym
             total_loss_sym += loss_sym.item() * len(labels)
-            
+
         loss.backward()
         optimizer.step()
         if (scheduler is not None) and (scheduler_type == "batch"):
             scheduler.step()
-            
+
         total_loss += loss.item() * len(labels)
-    
+
     return total_loss / len(loader.dataset), total_loss_sym / len(loader.dataset)
 
 
-def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features, lambda_sym, w_true, w_fake):
+def validate(
+    model,
+    loader,
+    device,
+    idx_sym_hit_features,
+    idx_sym_track_features,
+    idx_sym_preselect_features,
+    lambda_sym,
+    w_true,
+    w_fake):
     """
     Evaluate the model on a validation dataset.
 
@@ -123,6 +168,7 @@ def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features
         device (str): "cuda" or "cpu"
         idx_sym_hit_features (list[int] or None): Indices of hit features for symmetry
         idx_sym_track_features (list[int] or None): Indices of track features for symmetry
+        idx_sym_preselect_features (list[int] or None): Indices of preselect features for symmetry
         lambda_sym (float or None): Weight for symmetry regularization
         w_true (torch.Tensor or None): Weight for positive labels
         w_fake (torch.Tensor or None): Weight for negative labels
@@ -130,7 +176,7 @@ def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features
     Returns:
         tuple(float, float): Validation loss and accuracy
     """
-    
+
     model.eval()
     total_loss = 0
     total_loss_sym = 0
@@ -138,28 +184,34 @@ def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features
     n = 0
     with torch.no_grad():
         for batch in loader:
-            hit_features = batch["hit_features"].to(device)
-            track_features = batch["track_features"].to(device)
-            mask = batch["mask"].to(device)
+            features: FeatureBundle = batch["features"].to(device)
             labels = batch["labels"].to(device)
 
-            preds = model(hit_features, track_features, mask)
+            preds = model.forward_bundle(features)
             if (w_true is not None)and (w_fake is not None):
                 weight = torch.where(labels==1, w_true, w_fake)
                 loss = nn.functional.binary_cross_entropy_with_logits(preds, labels, weight=weight)
             else:    
                 loss = nn.functional.binary_cross_entropy_with_logits(preds, labels)
 
-            if ((idx_sym_hit_features is not None) or (idx_sym_track_features is not None)) and lambda_sym is not None:
-                hit_features_mirr, track_features_mirr = mirror_inputs(hit_features, track_features, idx_sym_hit_features, idx_sym_track_features)
-                hit_features_mirr = hit_features_mirr.to(device)
-                track_features_mirr = track_features_mirr.to(device)
-                
-                preds_mirr = model(hit_features_mirr, track_features_mirr, mask)
+            if lambda_sym is not None and any([
+                idx_sym_hit_features is not None,
+                idx_sym_track_features is not None,
+                idx_sym_preselect_features is not None
+            ]):
+                features_mirr = mirror_inputs(
+                    features,
+                    idx_sym_hit_features,
+                    idx_sym_track_features,
+                    idx_sym_preselect_features
+                )
+
+                features_mirr = features_mirr.to(device)
+
+                preds_mirr = model.forward_bundle(features_mirr)
                 loss_sym = lambda_sym * (torch.sigmoid(preds_mirr) - torch.sigmoid(preds)).pow(2).mean()
                 total_loss_sym += loss_sym.item() * len(labels)
 
-            
             total_loss += loss.item() * len(labels)
             preds_bin = (preds > 0).float()
             correct += (preds_bin == labels).sum().item()
@@ -170,6 +222,7 @@ def validate(model, loader, device, idx_sym_hit_features, idx_sym_track_features
 # ---------------------------
 # Ray Tune Trainable
 # ---------------------------
+
 def trainable(config):
     """
     Ray Tune trainable function for TrackClassifier training.
@@ -194,10 +247,11 @@ def trainable(config):
     base_checkpoint_directory = config.training.base_checkpoint_directory
     idx_sym_hit_features = config.training.symmetry.idxSymRecHitFeatures
     idx_sym_track_features = config.training.symmetry.idxSymRecoPixelTrackFeatures
+    idx_sym_preselect_features = config.training.symmetry.idxSymPreselectFeatures
     lambda_sym = config.training.symmetry.lambda_sym
     w_fake = torch.tensor(config.training.weights.w_fake, device=device)
     w_true = torch.tensor(config.training.weights.w_true, device=device)
-    
+
     # Trial directory for this run
     trial_name = None
     if session.get_session():
@@ -205,7 +259,7 @@ def trainable(config):
             trial_name = session.get_trial_id()
         except Exception:
             pass
-            
+
     run_dir = create_run_dir(
         base_dir=base_checkpoint_directory,
         trial_name=trial_name
@@ -215,37 +269,21 @@ def trainable(config):
     # Dataset
     train_ds, collate_fn = get_dataset(config, dataset_role="train_path")
     val_ds, _ = get_dataset(config, dataset_role="val_path")
-    
+
     train_loader = DataLoader(
-        train_ds, 
+        train_ds,
         batch_size=config.training.batch_size,
-        shuffle=True, 
+        shuffle=True,
         collate_fn=collate_fn
     )
     val_loader = DataLoader(
-        val_ds, 
-        batch_size=config.training.batch_size, 
+        val_ds,
+        batch_size=config.training.batch_size,
         collate_fn=collate_fn
     )
 
     # Model
-    model = TrackClassifier(
-        hit_input_dim=config.model.hit_input_dim,
-        track_feat_dim=config.model.track_feat_dim,
-        latent_dim=config.model.latent_dim,
-        pooling_type=config.model.pooling_type,
-        
-        netA_hidden_dim=config.model.netA_hidden_dim,
-        netA_hidden_layers=config.model.netA_hidden_layers,
-        netA_batchnorm=config.model.netA_batchnorm,
-        netA_activation=config.model.netA_activation,
-        
-        netB_hidden_dim=config.model.netB_hidden_dim,
-        netB_hidden_layers=config.model.netB_hidden_layers,
-        netB_batchnorm=config.model.netB_batchnorm,
-        netB_activation=config.model.netB_activation,
-    ).to(device)
-
+    model = build_model(config.model).to(device)
     save_model_summary(model, run_dir)
 
     optimizer = build_optimizer(model, config)
@@ -262,41 +300,43 @@ def trainable(config):
     scheduler, scheduler_type = build_scheduler(optimizer, config, total_steps)
     if scheduler is not None:
         scheduler.last_step = -1
-    
+
     logger = CSVLogger(run_dir)
 
     # Initialize best metrics safely
     best_val_loss = float("inf")
     best_metrics = {"val_loss": float("inf"), "val_acc": 0.0, "epoch": 0}
     count_stopping = 0
-    
+
     # Training loop
     for epoch in range(n_epochs):
-        if(count_stopping==patience):
+        if count_stopping == patience:
             break
-            
+
         train_loss, train_loss_sym = train_one_epoch(
-            model, 
-            train_loader, 
-            optimizer, 
-            device, 
-            idx_sym_hit_features, 
-            idx_sym_track_features, 
-            lambda_sym, 
-            w_true, 
-            w_fake, 
-            scheduler, 
+            model,
+            train_loader,
+            optimizer,
+            device,
+            idx_sym_hit_features,
+            idx_sym_track_features,
+            idx_sym_preselect_features,
+            lambda_sym,
+            w_true,
+            w_fake,
+            scheduler,
             scheduler_type
         )
-        
+
         val_loss, val_acc, val_loss_sym = validate(
-            model, 
-            val_loader, 
-            device, 
-            idx_sym_hit_features, 
-            idx_sym_track_features, 
-            lambda_sym, 
-            w_true, 
+            model,
+            val_loader,
+            device,
+            idx_sym_hit_features,
+            idx_sym_track_features,
+            idx_sym_preselect_features,
+            lambda_sym,
+            w_true,
             w_fake
         )
 
@@ -350,7 +390,6 @@ def trainable(config):
         best_metrics,
         checkpoint=Checkpoint.from_directory(run_dir)
     )
-    
 
 if __name__ == "__main__":
     cfg = load_config("base.yaml")

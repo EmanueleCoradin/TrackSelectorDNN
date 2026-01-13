@@ -1,47 +1,178 @@
+"""
+Configuration schema for the TrackSelectorDNN model and training pipeline.
+"""
+
 from importlib import resources
-from typing import Literal, Optional, List
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pathlib import Path
+from typing import Annotated, List, Literal, Optional, Union
+
 import yaml
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-class ModelConfig(BaseModel):
+#-----------------------------------------------------------------------------
+
+# ---------------------
+# Model Related Config
+# ---------------------
+
+# ----------------------------------------------------------------------------
+
+class MLPConfig(BaseModel):
     """
-    Configuration schema for the TrackSelectorDNN model.
-
-    This class uses Pydantic to define and validate configuration parameters
-    for model architecture.
+    Configuration schema for a MLP block.
     
-    --- Attributes ---
-        hit_input_dim (int): Dimensionality of the input features for hits.
-        track_feat_dim (int): Dimensionality of the track features.
-        latent_dim (int): Size of the latent embedding vector (must be > 0).
-        pooling_type (Literal["sum", "mean", "softmax"]): Pooling method to aggregate the results of NetAs.
-
-        netA_hidden_dim (int): Hidden layer size for network A.
-        netA_hidden_layers (int): Number of hidden layers in network A.
-        netA_batchnorm (bool): Whether to use batch normalization in network A.
-        netA_activation (Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]): Activation function for network A.
-
-        netB_hidden_dim (int): Hidden layer size for network B.
-        netB_hidden_layers (int): Number of hidden layers in network B.
-        netB_batchnorm (bool): Whether to use batch normalization in network B.
-        netB_activation (Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]): Activation function for network B.
+    --- Attributes ---    
+    hidden_dim (int): Hidden layer size.
+    hidden_layers (int): Number of hidden layers.
+    batchnorm (bool): Whether to use batch normalization after each layer.
+    activation (Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]): Activation function for each neuron.
     """
+
+    hidden_dim: int = Field(gt=0)
+    hidden_layers: int = Field(gt=0)
+    batchnorm: bool
+    activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+
+# -------------------------------------------------------------------------------------
+
+class NetAMLPConfig(BaseModel):
+    """
+    Configuration schema for a NetA based on a MLP block.
     
-    hit_input_dim: int  = Field(..., gt=0)
-    track_feat_dim: int  = Field(..., gt=0)
-    latent_dim: int  = Field(..., gt=0)
+    --- Attributes ---    
+    kind (Literal["mlp"]): Kind of architecture implemented. 
+    hidden_dim (int): Hidden layer size.
+    hidden_layers (int): Number of hidden layers.
+    batchnorm (bool): Whether to use batch normalization after each layer.
+    activation (Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]): Activation function for each neuron.
+    """
+    kind: Literal["mlp"]
+
+    hidden_dim: int = Field(gt=0)
+    hidden_layers: int = Field(gt=0)
+    batchnorm: bool
+    activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+
+#TODO: to be implemented in the library, left as a reference
+class NetATransformerConfig(BaseModel):
+    """
+    Configuration schema for a NetA based on a transformer block.
+    
+    --- Attributes ---    
+    kind (Literal["transformer"]): Kind of architecture implemented. 
+    d_model (int): Dimensionality of the per-hit embedding space used internally by the transformer.
+    
+    n_heads (int): 
+        Number of attention heads in the multi-head self-attention layers.
+        Must evenly divide `d_model`. More heads allow the model to attend
+        to multiple feature subspaces in parallel.
+    
+    n_layers (bool): Number of stacked transformer encoder layers.
+    dropout (float): Dropout probability applied within the transformer encoder layers. Must be in the range [0.0, 1.0].
+    """
+    kind: Literal["transformer"]
+
+    d_model: int = Field(gt=0)
+    n_heads: int = Field(gt=0)
+    n_layers: int = Field(gt=0)
+    dropout: float = Field(0.0, ge=0.0, le=1.0)
+
+NetAConfig = Annotated[
+    Union[
+        NetAMLPConfig,
+        NetATransformerConfig,
+    ],
+    Field(discriminator="kind"),
+]
+
+# -------------------------------------------------------------------------------------
+
+class NetBMLPConfig(BaseModel):
+    """
+    Configuration schema for a track-level MLP that combines pooled hit
+    embeddings from NetA with per-track features.
+    """
+
+    kind: Literal["mlp"]
+
+    hidden_dim: int = Field(gt=0)
+    hidden_layers: int = Field(ge=0)
+    batchnorm: bool
+    activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+
+class NetBTrackOnlyConfig(BaseModel):
+    """
+    Configuration schema for a track-only classifier operating exclusively
+    on per-track features, without any dependence on hit-level information.
+    """
+
+    kind: Literal["track_only"]
+
+    hidden_dim: int = Field(gt=0)
+    hidden_layers: int = Field(ge=0)
+    batchnorm: bool
+    activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+
+NetBConfig = Annotated[
+    Union[
+        NetBMLPConfig,
+        NetBTrackOnlyConfig,
+    ],
+    Field(discriminator="kind"),
+]
+
+# -------------------------------------------------------------------------------------
+
+class TrackClassifierConfig(BaseModel):
+    """
+    Configuration schema for a classifier operating 
+    on per-track features and hit-level information.
+    """
+    type: Literal["track_classifier"]
+
+    hit_input_dim: int = Field(gt=0)
+    track_feat_dim: int = Field(gt=0)
+    latent_dim: int = Field(gt=0)
     pooling_type: Literal["sum", "mean", "softmax"]
-    
-    netA_hidden_dim: int  = Field(..., gt=0)
-    netA_hidden_layers: int  = Field(..., gt=0)
-    netA_batchnorm: bool 
-    netA_activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
-    
-    netB_hidden_dim: int  = Field(..., gt=0)
-    netB_hidden_layers: int  = Field(..., gt=0)
-    netB_batchnorm: bool
-    netB_activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
 
+    netA: NetAConfig
+    netB: NetBConfig
+
+class TrackOnlyClassifierConfig(BaseModel):
+    """
+    Configuration schema for a track-only classifier operating exclusively
+    on per-track features, without any dependence on hit-level information.
+    """
+    type: Literal["track_only"]
+
+    track_feat_dim: int = Field(gt=0)
+    netB: NetBConfig
+
+class PreselectorClassifierConfig(BaseModel):
+    """
+    Configuration schema for a preselector classifier operating 
+    on per-track features.
+    """
+    type: Literal["preselector"]
+
+    preselector_feat_dim: int = Field(gt=0)
+    netB: NetBConfig
+
+ModelConfig = Annotated[
+    Union[
+        TrackClassifierConfig,
+        TrackOnlyClassifierConfig,
+        PreselectorClassifierConfig,
+    ],
+    Field(discriminator="type"),
+]
+# -------------------------------------------------------------------------------------
+
+# ------------------------
+# Training Related Config
+# ------------------------
+
+# -------------------------------------------------------------------------------------
 
 class SymmetryConfig(BaseModel):
     """
@@ -50,12 +181,13 @@ class SymmetryConfig(BaseModel):
     --- Attributes ---
         idxSymRecHitFeatures (Optional[List[int]]): Indices of hit features to symmetrize.
         idxSymRecoPixelTrackFeatures (Optional[List[int]]): Indices of pixel track features  to symmetrize.
+        idxSymPreselectFeatures (Optional[List[int]]): Indices of preselection features to symmetrize.
         lambda_sym (Optional[float]): Weight for symmetric regularization term.
     """
     idxSymRecHitFeatures: Optional[List[int]] = None
     idxSymRecoPixelTrackFeatures: Optional[List[int]] = None
+    idxSymPreselectFeatures: Optional[List[int]] = None
     lambda_sym: Optional[float] = None
-
 
 class WeightsConfig(BaseModel):
     """
@@ -67,6 +199,8 @@ class WeightsConfig(BaseModel):
     """
     w_true: Optional[float] = None
     w_fake: Optional[float] = None
+
+# -------------------------------------------------------------------------------------
 
 class OptimizerConfig(BaseModel):
     """
@@ -84,7 +218,7 @@ class OptimizerConfig(BaseModel):
     name: Literal["adam", "adamw"]
     lr: float = Field(..., gt=0)
     weight_decay: float = 0.0
-    
+
 class SchedulerConfig(BaseModel):
     """
     Learning-rate scheduler configuration for the training pipeline.
@@ -193,6 +327,8 @@ class SchedulerConfig(BaseModel):
 
         return self
 
+# -------------------------------------------------------------------------------------
+
 class TrainingConfig(BaseModel):
     """
     Configuration schema for the training pipeline.
@@ -219,37 +355,45 @@ class TrainingConfig(BaseModel):
     scheduler: SchedulerConfig
     symmetry: SymmetryConfig
     weights: WeightsConfig
-    
-  
+
+# -------------------------------------------------------------------------------------
+
+# --------------------
+# Data Related Config
+# --------------------
+
 class DataConfig(BaseModel):
     """
     Configuration schema for the dataset handling.
 
     --- Attributes ---
-        dataset_type (Literal["dummy", "production"]): Type of dataset to use.
+        dataset_type (Literal["dummy", "production", "preselector"]): Type of dataset to use.
         dummy_load_path (Optional[str]): Path to dummy dataset (required if dataset_type is "dummy").
-        train_path (Optional[str]): Path to training dataset (required if dataset_type is "production").
-        val_path (Optional[str]): Path to validation dataset (required if dataset_type is "production").
-        test_path (Optional[str]): Path to test dataset (required if dataset_type is "production").
+        train_path (Optional[str]): Path to training dataset (required if dataset_type is "production", "preselector").
+        val_path (Optional[str]): Path to validation dataset (required if dataset_type is "production", "preselector").
+        test_path (Optional[str]): Path to test dataset.
         max_hits (int): Maximum number of hits per track.
     """
-    
-    dataset_type: Literal["dummy", "production"]
+
+    dataset_type: Literal["dummy", "production", "preselector"]
     dummy_load_path: Optional[str] = None
     train_path: Optional[str] = None
     val_path: Optional[str] = None
     test_path: Optional[str] = None
     max_hits: int
-    
+
     @model_validator(mode="after")
     def check_paths(self):
+        """
+        Ensure that required parameters are provided and valid depending on the scheduler type.
+        """
         if self.dataset_type == "dummy":
             if not self.dummy_load_path:
                 raise ValueError("dummy_load_path is required when dataset_type='dummy'")
 
-        if self.dataset_type == "production":
+        if self.dataset_type == "production" or self.dataset_type == "preselector":
             missing = [
-                name for name in ("train_path", "val_path", "test_path")
+                name for name in ("train_path", "val_path")
                 if getattr(self, name) is None
             ]
             if missing:
@@ -258,7 +402,15 @@ class DataConfig(BaseModel):
                 )
 
         return self
-    
+
+# -------------------------------------------------------------------------------------
+
+# --------------------
+# General Config
+# --------------------
+
+# -------------------------------------------------------------------------------------
+
 class Config(BaseModel):
     """
     Configuration schema for the TrackSelectorDNN model and training pipeline.
@@ -270,23 +422,20 @@ class Config(BaseModel):
     model: ModelConfig
     training: TrainingConfig
     data: DataConfig
-        
-def load_config(filename: str) -> Config:
+
+def load_config(filename: str | Path) -> Config:
     """
-    Load a YAML configuration file and return a validated Config instance.
-
-    Args:
-        filename (str): Name of the YAML file inside the TrackSelectorDNN.configs package.
-
-    Returns:
-        Config: Pydantic-validated configuration object with nested blocks:
-            - model
-            - training
-            - data
+    Load a YAML configuration file from either:
+    - a filesystem path
+    - or the TrackSelectorDNN.configs package
     """
-    # Use importlib.resources to read the YAML file from the package
-    with resources.open_text("TrackSelectorDNN.configs", filename) as f:
-        raw = yaml.safe_load(f)
+    if isinstance(filename, (str, Path)) and Path(filename).exists():
+        with Path(filename).open("r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f)
+    else:
+        with resources.open_text("TrackSelectorDNN.configs", filename) as f:
+            raw = yaml.safe_load(f)
 
-    # The raw YAML already matches the nested Config structure
     return Config(**raw)
+
+# -------------------------------------------------------------------------------------
