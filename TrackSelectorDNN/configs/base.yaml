@@ -47,7 +47,7 @@ training:
 
 # Data
 data:
-    dataset_type: "production"          # or 'production'
+    dataset_type: "production"         
     train_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_train_dataset.pt"  # used only if production
     val_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_val_dataset.pt"
     test_path: "/eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/tracks_test_dataset.pt"

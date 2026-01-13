@@ -54,7 +54,7 @@ def mirror_inputs(
         for idx in idx_sym_hit_features:
             hit_features[:,:,idx]*=-1
 
-    if (idx_sym_track_features is not None) and (features.track_features is not None):  
+    if (idx_sym_track_features is not None) and (features.track_features is not None):
         for idx in idx_sym_track_features:
             track_features[:,idx]*=-1
 
@@ -65,7 +65,7 @@ def mirror_inputs(
     return FeatureBundle(
         hit_features=hit_features,
         track_features=track_features,
-        preselect_features=preselect_features,  
+        preselect_features=preselect_features,
         mask=features.mask
     )
 
@@ -284,7 +284,6 @@ def trainable(config):
 
     # Model
     model = build_model(config.model).to(device)
-
     save_model_summary(model, run_dir)
 
     optimizer = build_optimizer(model, config)

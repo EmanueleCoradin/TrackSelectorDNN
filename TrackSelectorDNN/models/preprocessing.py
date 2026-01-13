@@ -22,6 +22,7 @@ class FeaturePreprocessing(nn.Module):
             clip_max: tensor (..., F) or None
             do_log:   boolean tensor (..., F) or None
         """
+
         super().__init__()
 
         # Register buffers (saved in state_dict & ONNX-safe)

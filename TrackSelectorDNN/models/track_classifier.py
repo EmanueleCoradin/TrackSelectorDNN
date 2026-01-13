@@ -48,11 +48,11 @@ class TrackClassifier(nn.Module):
     
         # Pooling
         pooled = self.pool(h, mask)  # (N_tracks, latent_dim)
-    
+
         # NetB
         out = self.netB(pooled, track_features)  # (N_tracks,)
         return out
-    
+
     def forward_bundle(self, features: FeatureBundle):
         """
         Forward method accepting a FeatureBundle.
@@ -113,7 +113,7 @@ class TrackClassifierInference(nn.Module):
             hit_features=features.hit_features,
             track_features=features.track_features
         )
-    
+
 # ------------------------------------------------------------------------------
 
 class TrackOnlyClassifier(nn.Module):
@@ -128,12 +128,12 @@ class TrackOnlyClassifier(nn.Module):
             cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
         """
         super().__init__()
-        
+
         self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.track_feat_dim)
 
     def forward(self, track_features):
         return self.netB(track_features)
-    
+
     def forward_bundle(self, features: FeatureBundle):
         """
         Forward method accepting a FeatureBundle.
@@ -143,7 +143,7 @@ class TrackOnlyClassifier(nn.Module):
         """
         return self.forward(
             track_features=features.track_features
-        )   
+        )
 
 # ------------------------------------------------------------------------------
 
@@ -159,12 +159,12 @@ class PreselectorClassifier(nn.Module):
             cfg (TrackOnlyClassifierConfig): Validated Pydantic config.
         """
         super().__init__()
-        
+
         self.netB = build_netB(cfg.netB, latent_dim=None, track_feat_dim=cfg.preselector_feat_dim)
 
     def forward(self, preselect_features):
         return self.netB(preselect_features)
-    
+
     def forward_bundle(self, features: FeatureBundle):
         """
         Forward method accepting a FeatureBundle.

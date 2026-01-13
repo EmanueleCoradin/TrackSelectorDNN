@@ -64,6 +64,7 @@ def save_config(config, run_dir):
 
     return path
 
+
 def save_model_summary(model, run_dir):
     """
     Save a model architecture summary to a text file in the run directory.

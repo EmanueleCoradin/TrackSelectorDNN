@@ -109,7 +109,7 @@ class TrackDatasetFromFile(Dataset):
         self.do_log_track = data.get("do_log_track", None)
         self.clip_min_track = data.get("clip_min_track", None)
         self.clip_max_track = data.get("clip_max_track", None)
-        
+
     def __len__(self):
         return self.recHitFeatures.shape[0]
 

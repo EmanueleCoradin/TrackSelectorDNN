@@ -374,14 +374,14 @@ class DataConfig(BaseModel):
         test_path (Optional[str]): Path to test dataset.
         max_hits (int): Maximum number of hits per track.
     """
-    
+
     dataset_type: Literal["dummy", "production", "preselector"]
     dummy_load_path: Optional[str] = None
     train_path: Optional[str] = None
     val_path: Optional[str] = None
     test_path: Optional[str] = None
     max_hits: int
-    
+
     @model_validator(mode="after")
     def check_paths(self):
         """
@@ -407,7 +407,7 @@ class DataConfig(BaseModel):
 
 # --------------------
 # General Config
-# --------------------    
+# --------------------
 
 # -------------------------------------------------------------------------------------
 
