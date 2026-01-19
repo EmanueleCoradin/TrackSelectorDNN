@@ -4,12 +4,32 @@ Module to build network models from config objects.
 
 import torch.nn as nn
 
-from TrackSelectorDNN.configs.schema import  ModelConfig, NetAConfig, NetBConfig
+from TrackSelectorDNN.configs.schema import  ModelConfig, NetAConfig, NetBConfig, MLPConfig, TrackGNNConfig
 from TrackSelectorDNN.models.netA import NetA, NetATransformer
 from TrackSelectorDNN.models.netB import NetB, NetBTrackOnly
 from TrackSelectorDNN.models.registry import get_activation, get_pooling
 
 # -------------------------------------------------------------------------------------
+def build_mlp(input_dim, cfg:MLPConfig):
+    layers = []
+    dim = input_dim
+
+    act = get_activation(cfg.activation)
+    layers.append(nn.Linear(dim, cfg.hidden_dim))
+
+    if cfg.batchnorm:
+        layers.append(nn.LayerNorm(cfg.hidden_dim))
+
+    layers.append(act())
+
+    for _ in range(cfg.hidden_layers-1):
+        layers.append(nn.Linear(cfg.hidden_dim, cfg.hidden_dim))
+        if cfg.batchnorm:
+            layers.append(nn.LayerNorm(cfg.hidden_dim))
+        layers.append(act())
+
+    return nn.Sequential(*layers)
+
 
 def build_netA(cfg: NetAConfig, input_dim: int, latent_dim: int) -> nn.Module:
     """
@@ -77,6 +97,7 @@ def build_model(cfg: ModelConfig) -> nn.Module:
     Build the correct torch.nn.Module from a validated ModelConfig.
     """
     from TrackSelectorDNN.models.track_classifier import PreselectorClassifier, TrackClassifier, TrackOnlyClassifier
+    from TrackSelectorDNN.models.gnn_classifier import TrackGNN
 
     if cfg.type == "track_classifier":
         return TrackClassifier(cfg)
@@ -84,6 +105,8 @@ def build_model(cfg: ModelConfig) -> nn.Module:
         return TrackOnlyClassifier(cfg)
     if cfg.type == "preselector":
         return PreselectorClassifier(cfg)
+    if cfg.type == "gnn":
+        return TrackGNN(cfg)
 
     raise ValueError(f"Unknown model type: {cfg.type}")
 

@@ -1,0 +1,69 @@
+model:
+  type: gnn
+  node_dim: 9
+  edge_dim: 3
+  global_dim: 3
+  temperature: 0.3
+
+  node_mlp:
+    hidden_dim: 16
+    hidden_layers: 1
+    batchnorm: false
+    activation: relu
+  
+  edge_mlp:
+    hidden_dim: 16
+    hidden_layers: 1
+    batchnorm: false
+    activation: relu
+
+  global_mlp:
+    hidden_dim: 16
+    hidden_layers: 1
+    batchnorm: false
+    activation: relu
+  
+  global_classifier:
+    hidden_dim: 32
+    hidden_layers: 3
+    batchnorm: false
+    activation: relu
+  
+training:
+  epochs: 75
+  batch_size: 128
+  patience: 15
+  delta: 0.0
+  base_checkpoint_directory: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs-noHitPattern-skipping-GNN
+  optimizer:
+    name: adam
+    lr: 0.004960155501949429
+    weight_decay: 6.057427974775773e-06
+  scheduler:
+    name: none
+    min_lr: null
+    factor: null
+    patience: null
+    T_max: null
+    eta_min: null
+    max_lr: null
+    pct_start: null
+    anneal_strategy: null
+    div_factor: null
+    final_div_factor: null
+    three_phase: null
+  symmetry:
+    idxSymRecHitFeatures: null
+    idxSymRecoPixelTrackFeatures: null
+    idxSymPreselectFeatures: null
+    lambda_sym: null
+  weights:
+    w_true: 2.18
+    w_fake: 0.65
+data:
+  dataset_type: gnn
+  dummy_load_path: null
+  train_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/100_tracks_train_dataset_skip-connections_GNN.pt
+  val_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/100_tracks_val_dataset_skip-connections_GNN.pt
+  test_path: null
+  max_hits: 16

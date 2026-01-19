@@ -123,6 +123,23 @@ NetBConfig = Annotated[
 
 # -------------------------------------------------------------------------------------
 
+class TrackGNNConfig(BaseModel):
+    """
+    Configuration schema for a GNN-based track classifier.
+    """
+
+    type: Literal["gnn"]
+    node_dim: int = Field(gt=0)
+    edge_dim: int = Field(gt=0)
+    global_dim: int = Field(gt=0)
+    temperature: float = Field(gt=0.0)
+
+    node_mlp: MLPConfig
+    edge_mlp: MLPConfig
+    global_mlp: MLPConfig
+    global_classifier: MLPConfig
+
+
 class TrackClassifierConfig(BaseModel):
     """
     Configuration schema for a classifier operating 
@@ -160,6 +177,7 @@ class PreselectorClassifierConfig(BaseModel):
 
 ModelConfig = Annotated[
     Union[
+        TrackGNNConfig,
         TrackClassifierConfig,
         TrackOnlyClassifierConfig,
         PreselectorClassifierConfig,
@@ -367,15 +385,15 @@ class DataConfig(BaseModel):
     Configuration schema for the dataset handling.
 
     --- Attributes ---
-        dataset_type (Literal["dummy", "production", "preselector"]): Type of dataset to use.
+        dataset_type (Literal["dummy", "production", "preselector", "gnn"]): Type of dataset to use.
         dummy_load_path (Optional[str]): Path to dummy dataset (required if dataset_type is "dummy").
-        train_path (Optional[str]): Path to training dataset (required if dataset_type is "production", "preselector").
-        val_path (Optional[str]): Path to validation dataset (required if dataset_type is "production", "preselector").
+        train_path (Optional[str]): Path to training dataset (required if dataset_type is "production", "preselector", "gnn").
+        val_path (Optional[str]): Path to validation dataset (required if dataset_type is "production", "preselector", "gnn").
         test_path (Optional[str]): Path to test dataset.
         max_hits (int): Maximum number of hits per track.
     """
 
-    dataset_type: Literal["dummy", "production", "preselector"]
+    dataset_type: Literal["dummy", "production", "preselector", "gnn"]
     dummy_load_path: Optional[str] = None
     train_path: Optional[str] = None
     val_path: Optional[str] = None
@@ -391,7 +409,7 @@ class DataConfig(BaseModel):
             if not self.dummy_load_path:
                 raise ValueError("dummy_load_path is required when dataset_type='dummy'")
 
-        if self.dataset_type == "production" or self.dataset_type == "preselector":
+        if self.dataset_type == "production" or self.dataset_type == "preselector" or self.dataset_type == "gnn":
             missing = [
                 name for name in ("train_path", "val_path")
                 if getattr(self, name) is None
