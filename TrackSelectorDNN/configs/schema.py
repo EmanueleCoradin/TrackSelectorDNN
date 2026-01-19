@@ -441,7 +441,7 @@ class Config(BaseModel):
     training: TrainingConfig
     data: DataConfig
 
-def load_config(filename: str | Path) -> Config:
+def load_config(filename: Union[str, Path]) -> Config:
     """
     Load a YAML configuration file from either:
     - a filesystem path
