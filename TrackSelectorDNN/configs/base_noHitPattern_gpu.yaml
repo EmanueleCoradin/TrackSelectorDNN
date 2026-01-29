@@ -17,40 +17,35 @@ model:
     batchnorm: true
     activation: relu
 training:
-  epochs: 75
-  batch_size: 128
-  patience: 15
-  delta: 0.0
-  base_checkpoint_directory: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs-noHitPattern-skipping-GPU
+  epochs: 80
+  batch_size: 512
+  patience: null
+  delta: null
+  base_checkpoint_directory: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs-long-GPU
   optimizer:
     name: adam
-    lr: 0.004960155501949429
-    weight_decay: 6.057427974775773e-06
+    lr: 0.00025
+    weight_decay: 4.45e-07
   scheduler:
-    name: none
-    min_lr: null
-    factor: null
-    patience: null
-    T_max: null
-    eta_min: null
-    max_lr: null
-    pct_start: null
-    anneal_strategy: null
-    div_factor: null
-    final_div_factor: null
-    three_phase: null
+    name: onecycle
+    max_lr: 0.001         # ~10× base lr
+    pct_start: 0.1        
+    anneal_strategy: cos  # cosine decay
+    div_factor: 10.0      # initial_lr = max_lr / 10
+    final_div_factor: 100 # final_lr = initial_lr / 100
+    three_phase: false
   symmetry:
     idxSymRecHitFeatures: null
     idxSymRecoPixelTrackFeatures: null
     idxSymPreselectFeatures: null
     lambda_sym: null
   weights:
-    w_true: 2.18
-    w_fake: 0.65
+    w_true: 2.2
+    w_fake: 0.64
 data:
   dataset_type: production
   dummy_load_path: null
-  train_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/100_tracks_train_dataset_skip-connections_GNN_v2.pt
-  val_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/100_tracks_val_dataset_skip-connections_GNN_v2.pt
+  train_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/1000_tracks_train_dataset_skip-connections_GNN_v2.pt
+  val_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/1000_tracks_val_dataset_skip-connections_GNN_v2.pt
   test_path: null
   max_hits: 16
