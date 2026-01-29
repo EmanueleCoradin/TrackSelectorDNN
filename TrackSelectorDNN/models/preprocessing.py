@@ -25,26 +25,22 @@ class FeaturePreprocessing(nn.Module):
 
         super().__init__()
 
-        # Register buffers (saved in state_dict & ONNX-safe)
-        for name, val in [
-            ("mean", mean),
-            ("std", std),
-            ("clip_min", torch.nan_to_num(clip_min, nan=-float("inf"))),
-            ("clip_max", torch.nan_to_num(clip_max, nan=float("inf"))),
-            ("do_log", do_log),
-        ]:
-            if val is not None:
-                self.register_buffer(name, val)
-            else:
-                setattr(self, name, None)
+        def _buf(x):
+            return x if x is not None else torch.empty(0)
 
+        self.register_buffer("mean",     _buf(mean))
+        self.register_buffer("std",      _buf(std))
+        self.register_buffer("clip_min", _buf(torch.nan_to_num(clip_min, nan=-float("inf"))))
+        self.register_buffer("clip_max", _buf(torch.nan_to_num(clip_max, nan=float("inf"))))
+        self.register_buffer("do_log",   _buf(do_log))
+        
     def forward(self, x):
         """
         x: (B, F) or (B, T, F)
         """
 
         # Broadcast do_log to last dimension
-        if self.do_log is not None:
+        if self.do_log.numel() > 0:
             # Add dims until shapes match
             log_mask = self.do_log
             while log_mask.dim() < x.dim():
@@ -53,20 +49,20 @@ class FeaturePreprocessing(nn.Module):
             x = torch.where(log_mask, torch.log10(x + 1e-8), x)
 
         # Clipping
-        if self.clip_min is not None:
+        if self.clip_min.numel() > 0:
             clip_min = self.clip_min
             while clip_min.dim() < x.dim():
                 clip_min = clip_min.unsqueeze(0)
             x = torch.maximum(x, clip_min)
 
-        if self.clip_max is not None:
+        if self.clip_max.numel() > 0:
             clip_max = self.clip_max
             while clip_max.dim() < x.dim():
                 clip_max = clip_max.unsqueeze(0)
             x = torch.minimum(x, clip_max)
 
         # Normalization
-        if self.mean is not None and self.std is not None:
+        if self.mean.numel() > 0 and self.std.numel() > 0:
             mean = self.mean
             std  = self.std
             while mean.dim() < x.dim():
