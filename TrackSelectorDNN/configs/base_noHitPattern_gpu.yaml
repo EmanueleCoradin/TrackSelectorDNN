@@ -19,8 +19,8 @@ model:
 training:
   epochs: 80
   batch_size: 512
-  patience: null
-  delta: null
+  patience: 100
+  delta: 0
   base_checkpoint_directory: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs-long-GPU
   optimizer:
     name: adam
