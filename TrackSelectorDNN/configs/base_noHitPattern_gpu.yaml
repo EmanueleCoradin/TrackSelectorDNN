@@ -42,6 +42,11 @@ training:
   weights:
     w_true: 2.2
     w_fake: 0.64
+  reweighting:
+    enable: true
+    feature: "hltPixelTrack_eta"
+    n_bins: 50
+    do_class_norm: true  
 data:
   dataset_type: production
   dummy_load_path: null

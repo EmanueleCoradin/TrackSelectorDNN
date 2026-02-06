@@ -270,12 +270,25 @@ def trainable(config):
     train_ds, collate_fn = get_dataset(config, dataset_role="train_path")
     val_ds, _ = get_dataset(config, dataset_role="val_path")
 
-    train_loader = DataLoader(
-        train_ds,
-        batch_size=config.training.batch_size,
-        shuffle=True,
-        collate_fn=collate_fn
-    )
+    if config.training.reweighting.enable:
+        N_BINS  = config.training.reweighting.n_bins
+        FEATURE = config.training.reweighting.feature
+        DO_CLASS_NORM = config.training.reweighting.do_class_norm
+        sampler = train_ds.base.get_reweighting_sampler(feature=FEATURE, n_bins=N_BINS, do_class_norm=DO_CLASS_NORM)
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=config.training.batch_size,
+            shuffle=False,
+            collate_fn=collate_fn,
+            sampler=sampler
+        )
+    else:
+        train_loader = DataLoader(
+            train_ds,
+            batch_size=config.training.batch_size,
+            shuffle=True,
+            collate_fn=collate_fn
+        )
     val_loader = DataLoader(
         val_ds,
         batch_size=config.training.batch_size,

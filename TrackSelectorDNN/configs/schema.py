@@ -347,6 +347,30 @@ class SchedulerConfig(BaseModel):
 
 # -------------------------------------------------------------------------------------
 
+class ReweightingConfig(BaseModel):
+    """
+    Configuration schema for optional dataset reweighting based on feature distributions.
+
+    --- Attributes ---
+        enable (bool)       : Whether to apply reweighting to the training dataset.
+        feature (str)       : Name of the feature to use for reweighting.
+        n_bins (int)        : Number of bins to use for histogramming the feature distribution.
+        do_class_norm (bool): Whether to apply class normalization to the weights (i.e., normalize weights separately for each class).
+    """
+    enable: Optional[bool] = False
+    feature: Optional[str] = None
+    n_bins: Optional[int]  = Field(default=None, gt=0)
+    do_class_norm: Optional[bool] = False
+
+    @model_validator(mode="after")
+    def check_reweighting_params(self):
+        if self.enable:
+            if self.feature is None:
+                raise ValueError("feature must be set when reweighting is enabled")
+            if self.n_bins is None:
+                raise ValueError("n_bins must be set when reweighting is enabled")
+        return self
+
 class TrainingConfig(BaseModel):
     """
     Configuration schema for the training pipeline.
@@ -373,6 +397,7 @@ class TrainingConfig(BaseModel):
     scheduler: SchedulerConfig
     symmetry: SymmetryConfig
     weights: WeightsConfig
+    reweighting: ReweightingConfig
 
 # -------------------------------------------------------------------------------------
 

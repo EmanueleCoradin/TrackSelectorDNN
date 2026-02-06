@@ -281,13 +281,91 @@ class TrackDatasetFromFile(Dataset):
         return {
             "recHit_mean": self.recHit_mean,
             "recHit_std": self.recHit_std,
-            "reco_mean": self.reco_mean,
-            "reco_std": self.reco_std,
+            "reco_mean": self.recoPixelTrack_mean,
+            "reco_std": self.recoPixelTrack_std,
             "edge_mean": self.edge_mean,
             "edge_std": self.edge_std,
             "recHitExtra_mean": self.recHitExtra_mean,
             "recHitExtra_std": self.recHitExtra_std,
         }
+    # sampler = train_ds.get_reweighting_sampler(feature=FEATURE, n_bins=N_BINS, limit=LIMIT, do_class_norm=DO_CLASS_NORM)
+    def get_reweighting_sampler(self, feature: str, n_bins: int, do_class_norm: bool, true_power: float = -1.0, fake_power: float = -0.5) -> torch.utils.data.WeightedRandomSampler:
+        """
+        Get a weighted sampler for reweighting the dataset based on a specified feature.
+
+        Parameters
+        ----------
+        feature : str
+            Name of the feature to base the reweighting on. Should be one of the feature names in the dataset.
+
+        n_bins : int
+            Number of bins to use for histogramming the feature distribution.
+
+        do_class_norm : bool
+            Whether to apply class normalization to the weights (i.e., normalize weights separately for each class).
+        
+        true_power : float
+            Power to which the inverse of the true histogram is raised when computing weights. Default is -1.0 (i.e., inverse weighting).
+        
+        fake_power : float
+            Power to which the inverse of the fake histogram is raised when computing weights. Default is -0.5 (i.e., inverse sqrt weighting).
+
+        Returns
+        -------
+        sampler : torch.utils.data.WeightedRandomSampler
+            Weighted random sampler that can be used with a DataLoader to sample tracks according to the specified reweighting.
+        """
+        # Get feature values
+        if feature in self.recoPixelTrackBranches:
+            feat_idx = self.recoPixelTrackBranches.index(feature)
+            feat_values = self.recoPixelTrackFeatures[..., feat_idx]
+
+        elif feature in self.preselect_feature_names:
+            feat_idx = self.preselect_feature_names.index(feature)
+            feat_values = self.preselect_features[..., feat_idx]
+        
+        elif feature in self.recHitBranches:
+            raise ValueError(f"Feature '{feature}' in recHitBranches not supported.")
+
+        else:
+            raise ValueError(f"Feature '{feature}' not found in dataset.")
+        
+        bin_edges = torch.linspace(feat_values.min(), feat_values.max(), n_bins+1)
+        if self.labels is None:
+            raise ValueError("Labels are required for reweighting but not found in dataset.")
+
+        labels = self.labels
+        mask = labels.bool()
+        true_hist, _ = torch.histogram(feat_values[mask], bins=bin_edges, density=False)
+        fake_hist, _ = torch.histogram(feat_values[~mask], bins=bin_edges, density=False)
+        true_hist = torch.clamp(true_hist, min=1)
+        fake_hist = torch.clamp(fake_hist, min=1)
+        true_hist = true_hist.pow(true_power)
+        fake_hist = fake_hist.pow(fake_power)
+
+        bin_edges[0] = -float("inf")
+        bin_edges[-1] = float("inf")
+
+        true_bucket_id = torch.bucketize(feat_values[mask], bin_edges) - 1
+        fake_bucket_id = torch.bucketize(feat_values[~mask], bin_edges) - 1
+        true_weights = true_hist[true_bucket_id]
+        fake_weights = fake_hist[fake_bucket_id]
+
+        if do_class_norm:
+            true_target = 0.5
+            fake_target = 1 - true_target
+            true_weights = true_weights / true_weights.sum() * true_target
+            fake_weights = fake_weights / fake_weights.sum() * fake_target
+        else:   
+            true_weights = true_weights / true_weights.mean()
+            fake_weights = fake_weights / fake_weights.mean()
+        weights = torch.zeros(feat_values.shape[0])
+        weights[mask] = true_weights
+        weights[~mask] = fake_weights 
+        weights = weights.cpu()  # Ensure weights are on CPU for the sampler
+        sampler = torch.utils.data.WeightedRandomSampler(weights, num_samples=feat_values.shape[0], replacement=True)
+
+        return sampler
 
 # -------------------------------------------------------------------------------------
 
