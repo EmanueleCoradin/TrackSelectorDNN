@@ -289,7 +289,7 @@ class TrackDatasetFromFile(Dataset):
             "recHitExtra_std": self.recHitExtra_std,
         }
     # sampler = train_ds.get_reweighting_sampler(feature=FEATURE, n_bins=N_BINS, limit=LIMIT, do_class_norm=DO_CLASS_NORM)
-    def get_reweighting_sampler(self, feature: str, n_bins: int, do_class_norm: bool, true_power: float = -1.0, fake_power: float = -0.5) -> torch.utils.data.WeightedRandomSampler:
+    def get_reweighting_sampler(self, feature: str, n_bins: int, do_class_norm: bool, true_power: float = -1.0, fake_power: float = -0.5, normalize_fake: bool = True) -> torch.utils.data.WeightedRandomSampler:
         """
         Get a weighted sampler for reweighting the dataset based on a specified feature.
 
@@ -349,8 +349,10 @@ class TrackDatasetFromFile(Dataset):
         true_bucket_id = torch.bucketize(feat_values[mask], bin_edges) - 1
         fake_bucket_id = torch.bucketize(feat_values[~mask], bin_edges) - 1
         true_weights = true_hist[true_bucket_id]
-        fake_weights = fake_hist[fake_bucket_id]
-
+        if normalize_fake:
+            fake_weights = fake_hist[fake_bucket_id]
+        else:
+            fake_weights = torch.ones(feat_values.shape[0])
         if do_class_norm:
             true_target = 0.5
             fake_target = 1 - true_target

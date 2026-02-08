@@ -274,7 +274,7 @@ def trainable(config):
         N_BINS  = config.training.reweighting.n_bins
         FEATURE = config.training.reweighting.feature
         DO_CLASS_NORM = config.training.reweighting.do_class_norm
-        sampler = train_ds.base.get_reweighting_sampler(feature=FEATURE, n_bins=N_BINS, do_class_norm=DO_CLASS_NORM)
+        sampler = train_ds.base.get_reweighting_sampler(feature=FEATURE, n_bins=N_BINS, do_class_norm=DO_CLASS_NORM, normalize_fake=False)
         train_loader = DataLoader(
             train_ds,
             batch_size=config.training.batch_size,
