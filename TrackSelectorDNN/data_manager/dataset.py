@@ -352,7 +352,8 @@ class TrackDatasetFromFile(Dataset):
         if normalize_fake:
             fake_weights = fake_hist[fake_bucket_id]
         else:
-            fake_weights = torch.ones(feat_values.shape[0])
+            fake_weights = torch.ones((~mask).sum(), device=feat_values.device)
+
         if do_class_norm:
             true_target = 0.5
             fake_target = 1 - true_target
