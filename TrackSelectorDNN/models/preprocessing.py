@@ -12,7 +12,7 @@ class FeaturePreprocessing(nn.Module):
         - track features:          (B, F)
         - per-hit features:        (B, T, F)
     """
-
+    
     def __init__(self, mean=None, std=None, clip_min=None, clip_max=None, do_log=None):
         """
         Args:
@@ -33,42 +33,29 @@ class FeaturePreprocessing(nn.Module):
         self.register_buffer("clip_min", _buf(torch.nan_to_num(clip_min, nan=-float("inf"))))
         self.register_buffer("clip_max", _buf(torch.nan_to_num(clip_max, nan=float("inf"))))
         self.register_buffer("do_log",   _buf(do_log))
+
+    def _match_shape(self, p, x):
+        if p.numel() == 0:
+            return p
+        while p.dim() < x.dim():
+            p = p.unsqueeze(0)
+        return p.expand_as(x)
         
     def forward(self, x):
-        """
-        x: (B, F) or (B, T, F)
-        """
-
-        # Broadcast do_log to last dimension
+        
         if self.do_log.numel() > 0:
-            # Add dims until shapes match
-            log_mask = self.do_log
-            while log_mask.dim() < x.dim():
-                log_mask = log_mask.unsqueeze(0)
-
+            log_mask = self._match_shape(self.do_log, x)
             x = torch.where(log_mask, torch.log10(x + 1e-8), x)
-
-        # Clipping
-        if self.clip_min.numel() > 0:
-            clip_min = self.clip_min
-            while clip_min.dim() < x.dim():
-                clip_min = clip_min.unsqueeze(0)
-            x = torch.maximum(x, clip_min)
-
-        if self.clip_max.numel() > 0:
-            clip_max = self.clip_max
-            while clip_max.dim() < x.dim():
-                clip_max = clip_max.unsqueeze(0)
-            x = torch.minimum(x, clip_max)
-
-        # Normalization
+            
+        if self.clip_min.numel() > 0 or self.clip_max.numel() > 0:
+            clip_min = self._match_shape(self.clip_min, x) if self.clip_min.numel() > 0 else None
+            clip_max = self._match_shape(self.clip_max, x) if self.clip_max.numel() > 0 else None
+            x.clamp_(min=clip_min, max=clip_max)
+        
         if self.mean.numel() > 0 and self.std.numel() > 0:
-            mean = self.mean
-            std  = self.std
-            while mean.dim() < x.dim():
-                mean = mean.unsqueeze(0)
-                std  = std.unsqueeze(0)
-
-            x = (x - mean) / (std + 1e-8)
-
+            mean = self._match_shape(self.mean, x)
+            std  = self._match_shape(self.std, x)
+            x.sub_(mean)
+            x.div_(std + 1e-8)
+            
         return x
