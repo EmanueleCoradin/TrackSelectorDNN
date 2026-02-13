@@ -50,7 +50,7 @@ training:
 data:
   dataset_type: production
   dummy_load_path: null
-  train_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/data/1000_tracks_train_dataset_skip-connections_strict_chi2_GNN.pt
+  train_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/1000_tracks_train_dataset_skip-connections_strict_chi2_GNN.pt
   val_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/1000_tracks_val_dataset_skip-connections_strict_chi2_GNN.pt
   test_path: null
   max_hits: 16
