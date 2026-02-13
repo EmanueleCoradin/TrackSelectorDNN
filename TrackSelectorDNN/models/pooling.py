@@ -72,17 +72,17 @@ class MeanPooling(nn.Module):
     Mean Pooling of hit features.
     """
 
-    def forward(self, h, mask):
+    def forward(self, h, mask=torch.empty(0, dtype=torch.bool)):
         """
         h: (N_tracks, N_hits, latent_dim)
         mask: (N_tracks, N_hits) boolean, True for real hits, False for padding
         """
         # If mask was not provided, use all True
         if mask.numel() == 0:
-            return h.mean(dim=1)
-
+            mask = torch.ones(h.shape[:2], dtype=torch.bool, device=h.device)
+        
         mask = mask.unsqueeze(-1)
-        h.mul_(mask)
+        h = torch.where(mask, h, torch.zeros_like(h))
         counts = mask.float().sum(dim=1).clamp(min=1e-6)
         pooled = h.sum(dim=1) / counts
         return pooled

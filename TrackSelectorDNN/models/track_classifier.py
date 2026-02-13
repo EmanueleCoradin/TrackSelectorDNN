@@ -33,7 +33,7 @@ class TrackClassifier(nn.Module):
         # Build NetB
         self.netB = build_netB(cfg.netB, cfg.latent_dim, cfg.track_feat_dim)
 
-    def forward(self, hit_features, track_features, mask):
+    def forward(self, hit_features, track_features, mask=torch.empty(0, dtype=torch.bool)):
         """
         Args:
             hit_features:   (N_tracks, N_hits_total, hit_input_dim)
@@ -44,8 +44,12 @@ class TrackClassifier(nn.Module):
         N_tracks, N_hits, _ = hit_features.shape
         
         # Pass hits through NetA
-        h = self.netA(hit_features.reshape(-1, hit_features.size(-1)))  # flatten hits
+        h = self.netA(hit_features.view(-1, hit_features.size(-1)))  # flatten hits
         h = h.view(N_tracks, N_hits, -1)                             # restore track dim
+        
+        # TorchScript-safe mask handling
+        if mask.numel() == 0:
+            mask = torch.ones(N_tracks, N_hits, dtype=torch.bool, device=hit_features.device)
         
         # Pooling
         pooled = self.pool(h, mask)  # (N_tracks, latent_dim)
@@ -84,37 +88,56 @@ class TrackClassifierInference(nn.Module):
         self.pre_hit = pre_hit
         self.pre_track = pre_track
 
-        self.eval()
-        for p in self.parameters():
-            p.requires_grad_(False)
-            
+    
+
     def forward(self, hit_features, track_features):
-         # 1. Preprocessing
-        hit_features  = self.pre_hit(hit_features)
-        track_features = self.pre_track(track_features)
+        N_tracks = track_features.size(0)
+
+        # 1. Preprocessing
+        hit_features  = self.pre_hit(hit_features)      # (N,T,F)
+        track_features = self.pre_track(track_features) # (N,F)
     
-        # 2. Build valid track mask
-        valid_mask = ~torch.isnan(track_features).any(dim=-1)
-        hit_mask = ~torch.isnan(hit_features).any(dim=-1)
+        # 2. Build valid track mask (True = good track)
+        valid_mask = ~torch.isnan(track_features).any(dim=-1)  # shape: (N_tracks,)
     
-        # 3. Replace NaNs with zeros
-        track_features = torch.nan_to_num_(track_features)
-        hit_features = torch.nan_to_num_(hit_features)
-        
-        # Forward full batch
-        logits = self.base(hit_features, track_features, hit_mask)
+        if valid_mask.any():  # at least one valid track
+            # 3. Select only valid tracks
+            valid_hit_features = hit_features[valid_mask,...]
+            valid_track_features = track_features[valid_mask,...]
     
-        probs = torch.sigmoid(logits)
+            # 4. Sanitize hits and make contiguous
+            valid_hit_features = valid_hit_features.contiguous()
+            valid_track_features = valid_track_features.contiguous()
     
-        # Zero out invalid tracks
-        probs = probs.unsqueeze(-1) * valid_mask.unsqueeze(-1)
+            # 5. Compute mask for hit NaNs
+            hit_mask = ~torch.isnan(valid_hit_features).any(dim=-1)
+    
+            # 6. Forward through DNN
+            logits_valid = self.base(valid_hit_features, valid_track_features, hit_mask)
+    
+            # 7. Sigmoid to get probabilities
+            probs_valid = torch.sigmoid(logits_valid)
+        else:
+            # No valid tracks
+            probs_valid = torch.empty(0, device=track_features.device, dtype=track_features.dtype)
+    
+        # 8. Scatter results back to full batch
+        probs = torch.zeros(N_tracks, device=track_features.device, dtype=track_features.dtype)
+        probs[valid_mask] = probs_valid
     
         return probs.reshape(-1, 1)
 
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
 
-    def train(self, mode: bool = True):
-        super().train(False)
-        return self
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            hit_features=features.hit_features,
+            track_features=features.track_features
+        )
 
 # ------------------------------------------------------------------------------
 

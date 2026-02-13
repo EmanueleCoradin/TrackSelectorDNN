@@ -21,7 +21,7 @@ training:
   batch_size: 512
   patience: 100
   delta: 0
-  base_checkpoint_directory: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs-long-GPU
+  base_checkpoint_directory: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/runs-grid-long-GPU
   optimizer:
     name: adam
     lr: 0.00025
@@ -40,17 +40,17 @@ training:
     idxSymPreselectFeatures: null
     lambda_sym: null
   weights:
-    w_true: 2.2
-    w_fake: 0.64
+    w_true: 0.77
+    w_fake: 1.42
   reweighting:
-    enable: true
+    enable: false
     feature: "hltPixelTrack_eta"
     n_bins: 50
     do_class_norm: true  
 data:
   dataset_type: production
   dummy_load_path: null
-  train_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/1000_tracks_train_dataset_skip-connections_GNN_v2.pt
-  val_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/1000_tracks_val_dataset_skip-connections_GNN_v2.pt
+  train_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/data/1000_tracks_train_dataset_skip-connections_strict_chi2_GNN.pt
+  val_path: /eos/user/e/ecoradin/GitHub/TrackSelectorDNN/TrackSelectorDNN/data/1000_tracks_val_dataset_skip-connections_strict_chi2_GNN.pt
   test_path: null
   max_hits: 16
