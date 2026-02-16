@@ -15,7 +15,7 @@ class NetA(nn.Module):
     """
 
     def __init__(self, input_dim, hidden_dim, latent_dim, hidden_layers,
-                 use_batchnorm, activation):
+                 use_batchnorm, use_layernorm, activation, dropout_rate):
         """
         Per-hit DNN with variable number of hidden layers.
 
@@ -25,7 +25,9 @@ class NetA(nn.Module):
             latent_dim (int):       Output size per hit.
             hidden_layers (int):    Number of hidden layers between input and output.
             use_batchnorm (bool):   Whether to use BatchNorm1d after each layer.
+            use_layernorm (bool):   Whether to use LayerNorm after each layer.
             activation (nn.Module): Activation function class (e.g. nn.ReLU, nn.SiLU).
+            dropout_rate(float):    Dropout rate to be applied to each layer.
         """
         super().__init__()
 
@@ -36,14 +38,20 @@ class NetA(nn.Module):
         layers.append(nn.Linear(input_dim, hidden_dim))
         if use_batchnorm:
             layers.append(nn.BatchNorm1d(hidden_dim))
+        if use_layernorm: 
+            layers.append(nn.LayerNorm(hidden_dim))
         layers.append(act)
+        layers.append(nn.Dropout(p=dropout_rate))
 
         # Hidden layers 
         for _ in range(hidden_layers - 1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             if use_batchnorm:
                 layers.append(nn.BatchNorm1d(hidden_dim))
+            if use_layernorm: 
+                layers.append(nn.LayerNorm(hidden_dim))
             layers.append(activation())
+            layers.append(nn.Dropout(p=dropout_rate))
 
         # Output layer 
         layers.append(nn.Linear(hidden_dim, latent_dim))

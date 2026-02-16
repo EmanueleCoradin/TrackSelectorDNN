@@ -44,7 +44,9 @@ def build_netA(cfg: NetAConfig, input_dim: int, latent_dim: int) -> nn.Module:
             latent_dim=latent_dim,
             hidden_layers=cfg.hidden_layers,
             use_batchnorm=cfg.batchnorm,
+            use_layernorm=cfg.use_layernorm,
             activation=activation,
+            dropout_rate=cfg.dropout_rate
         )
 
     if cfg.kind == "transformer":
@@ -78,7 +80,9 @@ def build_netB(cfg: NetBConfig, latent_dim: int, track_feat_dim: int) -> nn.Modu
             hidden_dim=cfg.hidden_dim,
             hidden_layers=cfg.hidden_layers,
             use_batchnorm=cfg.batchnorm,
+            use_layernorm=cfg.use_layernorm,
             activation=activation,
+            dropout_rate=cfg.dropout_rate
         )
     if cfg.kind == "track_only":
         return NetBTrackOnly(

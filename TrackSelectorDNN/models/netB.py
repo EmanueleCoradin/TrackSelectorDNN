@@ -13,7 +13,7 @@ class NetB(nn.Module):
 
     def __init__(self, latent_dim, track_feat_dim,
                  hidden_dim, hidden_layers,
-                 use_batchnorm, activation):
+                 use_batchnorm, use_layernorm, activation, dropout_rate):
         """
         Track-level NN with latent input from hit features.
 
@@ -23,7 +23,9 @@ class NetB(nn.Module):
             hidden_dim (int):       Width of each hidden layer.
             hidden_layers (int):    Number of hidden layers before the output.
             use_batchnorm (bool):   Whether to include BatchNorm1d.
+            use_layernorm (bool):   Whether to use LayerNorm after each layer.
             activation (nn.Module): Activation function class (e.g., nn.ReLU, nn.SiLU).
+            dropout_rate(float):    Dropout rate to be applied to each layer.
         """
         super().__init__()
 
@@ -35,14 +37,23 @@ class NetB(nn.Module):
         layers.append(nn.Linear(input_dim, hidden_dim))
         if use_batchnorm:
             layers.append(nn.BatchNorm1d(hidden_dim))
+        if use_layernorm: 
+            layers.append(nn.LayerNorm(hidden_dim))
         layers.append(activation())
+        layers.append(nn.Dropout(p=dropout_rate))
+        
 
         # Hidden layers (if hidden_layers > 1)
         for _ in range(hidden_layers - 1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             if use_batchnorm:
                 layers.append(nn.BatchNorm1d(hidden_dim))
+            if use_layernorm: 
+                layers.append(nn.LayerNorm(hidden_dim))
+            
             layers.append(activation())
+            layers.append(nn.Dropout(p=dropout_rate))
+            
 
         # Output layer (1 neuron for binary classification)
         layers.append(nn.Linear(hidden_dim, 1))
@@ -79,7 +90,10 @@ class NetBTrackOnly(nn.Module):
             hidden_dim (int):       Width of each hidden layer.
             hidden_layers (int):    Number of hidden layers before the output.
             use_batchnorm (bool):   Whether to include BatchNorm1d.
+            use_layernorm (bool):   Whether to use LayerNorm after each layer.
             activation (nn.Module): Activation function class (e.g., nn.ReLU, nn.SiLU).
+            dropout_rate(float):    Dropout rate to be applied to each layer.
+            
         """ 
         super().__init__()
 
@@ -96,13 +110,20 @@ class NetBTrackOnly(nn.Module):
         layers.append(nn.Linear(in_dim, hidden_dim))
         if use_batchnorm:
             layers.append(nn.BatchNorm1d(hidden_dim))
+        if use_layernorm: 
+            layers.append(nn.LayerNorm(hidden_dim))
         layers.append(activation())
+        layers.append(nn.Dropout(p=dropout_rate))
+        
 
         for _ in range(hidden_layers-1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             if use_batchnorm:
                 layers.append(nn.BatchNorm1d(hidden_dim))
+            if use_layernorm: 
+                layers.append(nn.LayerNorm(hidden_dim))
             layers.append(activation())
+            layers.append(nn.Dropout(p=dropout_rate))
 
         layers.append(nn.Linear(hidden_dim, 1))
         self.mlp = nn.Sequential(*layers)

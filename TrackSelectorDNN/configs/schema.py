@@ -44,14 +44,20 @@ class NetAMLPConfig(BaseModel):
     hidden_dim (int): Hidden layer size.
     hidden_layers (int): Number of hidden layers.
     batchnorm (bool): Whether to use batch normalization after each layer.
+    use_layernorm (bool):   Whether to use LayerNorm after each layer.
+    
     activation (Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]): Activation function for each neuron.
+    dropout_rate(float):    Dropout rate to be applied to each layer.
+    
     """
     kind: Literal["mlp"]
 
     hidden_dim: int = Field(gt=0)
     hidden_layers: int = Field(gt=0)
-    batchnorm: bool
+    batchnorm: Optional[bool] = False
+    use_layernorm: Optional[bool] = False
     activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+    dropout_rate: Optional[float] = 0
 
 #TODO: to be implemented in the library, left as a reference
 class NetATransformerConfig(BaseModel):
@@ -97,8 +103,10 @@ class NetBMLPConfig(BaseModel):
 
     hidden_dim: int = Field(gt=0)
     hidden_layers: int = Field(ge=0)
-    batchnorm: bool
+    batchnorm: Optional[bool] = False
+    use_layernorm: Optional[bool] = False
     activation: Literal["relu", "silu", "gelu", "tanh", "leakyrelu"]
+    dropout_rate: Optional[float] = 0
 
 class NetBTrackOnlyConfig(BaseModel):
     """
