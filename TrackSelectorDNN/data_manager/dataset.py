@@ -289,7 +289,7 @@ class TrackDatasetFromFile(Dataset):
             "recHitExtra_std": self.recHitExtra_std,
         }
     # sampler = train_ds.get_reweighting_sampler(feature=FEATURE, n_bins=N_BINS, limit=LIMIT, do_class_norm=DO_CLASS_NORM)
-    def get_reweighting_sampler(self, feature: str, n_bins: int, do_class_norm: bool, true_power: float = -1.0, fake_power: float = -0.5, normalize_fake: bool = True) -> torch.utils.data.WeightedRandomSampler:
+    def get_reweighting_sampler(self, feature: str, n_bins: int, do_class_norm: bool, true_power: float = -1.0, fake_power: float = -0.5, normalize_fake: bool = False) -> torch.utils.data.WeightedRandomSampler:
         """
         Get a weighted sampler for reweighting the dataset based on a specified feature.
 
