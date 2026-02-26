@@ -233,7 +233,7 @@ def masked_log_transform(
     if method == 'log1p':
         vals[sel] = np.log1p(vals[sel])
     elif method == 'log_eps':
-        vals[sel] = np.log10(vals[sel] + eps)
+        vals[sel] = np.log10(np.abs(vals[sel]) + eps)
     elif method == 'signed_log_eps':
         vals[sel] = np.sign(vals[sel])*np.log10(np.abs(vals[sel]) + eps)
     else:

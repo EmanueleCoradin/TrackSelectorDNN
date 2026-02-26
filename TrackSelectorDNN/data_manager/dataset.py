@@ -15,13 +15,15 @@ class FeatureBundle:
     """
     Abstract bundle of features in input to the different models.
     """
-    hit_features: Optional[torch.Tensor] = None         # (N_hits, hit_input_dim)
-    track_features: Optional[torch.Tensor] = None       # (track_feat_dim)
-    edge_features: Optional[torch.Tensor] = None        # (N_edges, edge_feat_dim)
-    hit_extra_features: Optional[torch.Tensor] = None   # (N_hits, recHit_extra_dim)
-    preselect_features: Optional[torch.Tensor] = None   # (F_pre)
-    global_features: Optional[torch.Tensor] = None      # (global_feat_dim)
-    mask: Optional[torch.Tensor] = None                 # (N_hits)
+    hit_features: Optional[torch.Tensor] = None            # (N_hits, hit_input_dim)
+    track_features: Optional[torch.Tensor] = None          # (track_feat_dim)
+    edge_features: Optional[torch.Tensor] = None           # (N_edges, edge_feat_dim)
+    hit_extra_features: Optional[torch.Tensor] = None      # (N_hits, recHit_extra_dim)
+    preselect_features: Optional[torch.Tensor] = None      # (F_pre)
+    global_features: Optional[torch.Tensor] = None         # (global_feat_dim)
+    mask: Optional[torch.Tensor] = None                    # (N_hits)
+    hit_features_original: Optional[torch.Tensor] = None   # (N_hits, hit_input_dim)
+    track_features_original: Optional[torch.Tensor] = None # (track_feat_dim)
 
     def to(self, device: torch.device) -> "FeatureBundle":
         """
@@ -237,6 +239,9 @@ class TrackDatasetFromFile(Dataset):
         self.clip_min_track = data.get("clip_min_track", None)
         self.clip_max_track = data.get("clip_max_track", None)
 
+        self.recoPixelTrackFeaturesOriginal = data.get("recoPixelTrackFeaturesOriginal", None)
+        self.recHitFeaturesOriginal = data.get("recHitFeaturesOriginal", None)
+
     def __len__(self):
         return self.recHitFeatures.shape[0]
 
@@ -258,6 +263,16 @@ class TrackDatasetFromFile(Dataset):
             preselect_features=(
                 self.preselect_features[idx]
                 if self.preselect_features is not None
+                else None
+            ),
+            hit_features_original=(
+                self.recHitFeaturesOriginal[idx]
+                if self.recHitFeaturesOriginal is not None
+                else None
+            ),
+            track_features_original=(
+                self.recoPixelTrackFeaturesOriginal[idx]
+                if self.recoPixelTrackFeaturesOriginal is not None
                 else None
             ),
             mask=self.mask[idx],
@@ -316,18 +331,23 @@ class TrackDatasetFromFile(Dataset):
             Weighted random sampler that can be used with a DataLoader to sample tracks according to the specified reweighting.
         """
         # Get feature values
-        if feature in self.recoPixelTrackBranches:
-            feat_idx = self.recoPixelTrackBranches.index(feature)
-            feat_values = self.recoPixelTrackFeatures[..., feat_idx]
+        passed = False
+        if self.recoPixelTrackBranches is not None:
+            if feature in self.recoPixelTrackBranches:
+                feat_idx = self.recoPixelTrackBranches.index(feature)
+                feat_values = self.recoPixelTrackFeatures[..., feat_idx]
+                passed = True
+        if self.preselect_feature_names is not None:
+            if feature in self.preselect_feature_names:
+                feat_idx = self.preselect_feature_names.index(feature)
+                feat_values = self.preselect_features[..., feat_idx]
+                passed = True
+        if self.recHitBranches is not None: 
+            if feature in self.recHitBranches:
+                passed = True
+                raise ValueError(f"Feature '{feature}' in recHitBranches not supported.")
 
-        elif feature in self.preselect_feature_names:
-            feat_idx = self.preselect_feature_names.index(feature)
-            feat_values = self.preselect_features[..., feat_idx]
-        
-        elif feature in self.recHitBranches:
-            raise ValueError(f"Feature '{feature}' in recHitBranches not supported.")
-
-        else:
+        if not passed:
             raise ValueError(f"Feature '{feature}' not found in dataset.")
         
         bin_edges = torch.linspace(feat_values.min(), feat_values.max(), n_bins+1)
@@ -404,6 +424,27 @@ class TrackFullDNNView(DatasetView):
             edge_features=bf.edge_features,
             hit_extra_features=bf.hit_extra_features,
             mask=bf.mask,
+        )
+
+        item = {"features": features}
+
+        if "labels" in base_item:
+            item["labels"] = base_item["labels"]
+
+        return item
+
+class OriginalDataTrackDNNView(DatasetView):
+    """
+    Full hit + track DNN view.
+    """
+
+    def __getitem__(self, idx):
+        base_item = self.base[idx]
+        bf: FeatureBundle = base_item["features"]
+
+        features = FeatureBundle(
+            hit_features=bf.hit_features_original,
+            track_features=bf.track_features_original
         )
 
         item = {"features": features}
@@ -506,31 +547,3 @@ def collate_fn(batch):
         out["labels"] = torch.stack(labels)
 
     return out
-
-
-#old implementation for reference
-'''
-def collate_fn(batch):
-    """
-    Collate function for fixed-length tracks.
-    Each element of batch: (hit_features, track_features, mask, label)
-    """
-    hit_features, track_features, mask, labels = [], [], [], []
-
-    for item in batch:
-        features: FeatureBundle = item["features"]
-        hit_features.append(features.hit_features)
-        track_features.append(features.track_features)
-        mask.append(features.mask)
-        if "labels" in item:
-            labels.append(item["labels"])
-
-    return {
-        "features": FeatureBundle(
-            hit_features=torch.stack(hit_features),
-            track_features=torch.stack(track_features),
-            mask=torch.stack(mask)
-        ),
-        "labels": torch.stack(labels) if len(labels)!=0 else None
-    }
-'''

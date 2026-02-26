@@ -111,7 +111,17 @@ class TrackClassifierInference(nn.Module):
     
         return probs.reshape(-1, 1)
 
+    def forward_bundle(self, features: FeatureBundle):
+        """
+        Forward method accepting a FeatureBundle.
 
+        Args:
+            features (FeatureBundle): Input features bundle.
+        """
+        return self.forward(
+            hit_features=features.hit_features,
+            track_features=features.track_features
+        )
     def train(self, mode: bool = True):
         super().train(False)
         return self

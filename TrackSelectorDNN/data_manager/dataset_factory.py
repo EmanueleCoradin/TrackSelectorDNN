@@ -5,6 +5,7 @@ Module to create datasets based on configuration.
 from TrackSelectorDNN.data_manager.dataset import (
     TrackDatasetFromFile,
     TrackFullDNNView,
+    OriginalDataTrackDNNView,
     TrackPreselectorView,
     GNNTrackView,
     collate_fn,
@@ -66,7 +67,10 @@ def get_dataset(config, dataset_role: str = "train_path"):
     # ------------------------------------------------------------------
     if dataset_type == "production":
         dataset = TrackFullDNNView(base_dataset)
-
+    
+    elif dataset_type == "original":
+        dataset = OriginalDataTrackDNNView(base_dataset)
+    
     elif dataset_type == "preselector":
         dataset = TrackPreselectorView(base_dataset)
     
